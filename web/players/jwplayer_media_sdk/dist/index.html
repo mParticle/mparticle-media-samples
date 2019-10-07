@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>mParticle Sample App</title>
+        <!-- Load JW Player -->
+        <script src="https://cdn.jwplayer.com/libraries/37y1D93H.js"></script>
+
+        <!-- Load mParticle Bundle -->
+        <script src="main.js"></script>
+    </head>
+    <body>
+        <h1>JW Player + mParticle Media SDK</h1>
+
+        <div id="player"></div>
+
+        <script async defer>
+            jwplayer('player').setup({
+                mediaid: '1234566',
+                title: 'Some title defined in JS',
+                description:
+                    'This is not defined in the admin, but rather the JS',
+                image:
+                    'https://content.jwplatform.com/thumbs/rmLNqZf2-1280.jpg',
+                file:
+                    'https://content.jwplatform.com/videos/rmLNqZf2-jHSeTVAe.mp4'
+            });
+        </script>
+        <script async defer src="jwplayer.fns.js"></script>
+    </body>
+</html>

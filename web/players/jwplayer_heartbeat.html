@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js">
+  <!--<![endif]-->
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>JW Player + Adobe Heartbeat</title>
+    <meta name="description" content="" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="" />
+
+    <script src="https://cdn.jwplayer.com/libraries/37y1D93H.js"></script>
+    <script src="../utils/utils.js"></script>
+    <script src="../assets/AppMeasurement.js"></script>
+    <script src="../assets/VisitorAPI.js"></script>
+    <script src="../assets/MediaSDK.min.js"></script>
+  </head>
+  <body>
+    <!--[if lt IE 7]>
+      <p class="browsehappy">
+        You are using an <strong>outdated</strong> browser. Please
+        <a href="#">upgrade your browser</a> to improve your experience.
+      </p>
+    <![endif]-->
+
+    <h1>JW Player + Adobe Heartbeat</h1>
+
+    <div id="player"></div>
+
+    <script async defer>
+      var mediaObject = {};
+      var sessionStarted = false;
+      var mediaHeartbeat = {};
+      var customVideoMetadata = {};
+      var adData = {};
+      var adObject = null;
+      var adCustomMetadata = {};
+
+      // *** JW Player Init ****
+
+      jwplayer('player').setup({
+        // When set to 'auto', meta triggers automatically
+        // preload: 'auto',
+        mediaid: '1234566',
+        title: 'Some title defined in JS',
+        description: 'This is not defined in the admin, but rather the JS',
+        image: 'https://content.jwplatform.com/thumbs/rmLNqZf2-1280.jpg',
+        file: 'https://content.jwplatform.com/videos/rmLNqZf2-jHSeTVAe.mp4'
+      });
+
+      jwplayer().on('time', function(foo) {
+        mediaLog('time', foo);
+      });
+
+      jwplayer().on('firstFrame', function(foo) {
+        mediaLog('firstFrame', foo);
+      });
+
+      jwplayer().on('ready', function(foo) {
+        mediaLog('ready', foo);
+      });
+
+      jwplayer().on('setupError', function(foo) {
+        mediaLog('setupError', foo);
+      });
+
+      jwplayer().on('playlist', function(foo) {
+        mediaLog('playlist', foo);
+      });
+      jwplayer().on('playlistItem', function(foo) {
+        mediaLog('playlistItem', foo);
+
+        // This is the earliest place I could determine where most of the
+        // media information is available (as well as 'meta' below)
+        mediaObject.name = foo.item.title;
+        mediaObject.id = foo.item.mediaid;
+        mediaObject.streamType = 'vod';
+        mediaObject.mediaType = 'video';
+
+        // Start at 0 for now b/c JWplayer doesn't give you a duration till after the ads load
+        mediaObject.duration = 0;
+      });
+
+      jwplayer().on('playlistComplete', function(foo) {
+        mediaLog('playlistComplete', foo);
+      });
+
+      jwplayer().on('bufferChange', function(foo) {
+        mediaLog('bufferChange', foo);
+
+        // TODO:
+        // JW Player doesn't really have a buffer start/stop/complete
+        // Mabye we can use some sort of flag to check if buffering started here
+        // then check in 'playing' if bufferingStarted is true and fire bufferComplete?
+
+        trackBufferStart();
+        trackBufferComplete();
+      });
+
+      jwplayer().on('play', function(foo) {
+        mediaLog('play', foo);
+
+        // Play seems to be the obvious place to start a session, since that's
+        // where interaction starts and media should be loaded
+        if (!sessionStarted) {
+          trackSessionStart();
+        }
+
+        trackPlay(foo);
+      });
+
+      jwplayer().on('pause', function(foo) {
+        mediaLog('pause', foo);
+
+        trackPause();
+      });
+      jwplayer().on('buffer', function(foo) {
+        mediaLog('buffer', foo);
+
+        // Might seem like this would be the best place for
+        // 'bufferStart' but it didn't seem to work out that way
+        // :(
+      });
+
+      jwplayer().on('idle', function(foo) {
+        mediaLog('idle', foo);
+      });
+
+      jwplayer().on('complete', function(foo) {
+        mediaLog('complete', foo);
+        trackComplete();
+      });
+
+      jwplayer().on('error', function(foo) {
+        mediaLog('error', foo);
+      });
+
+      jwplayer().on('seek', function(foo) {
+        mediaLog('seek', foo);
+      });
+
+      jwplayer().on('seeked', function(foo) {
+        mediaLog('seeked', foo);
+      });
+
+      jwplayer().on('mute', function(foo) {
+        mediaLog('mute', foo);
+      });
+
+      jwplayer().on('volume', function(foo) {
+        mediaLog('volume', foo);
+      });
+
+      jwplayer().on('fullscreen', function(foo) {
+        mediaLog('fullscreen', foo);
+      });
+
+      jwplayer().on('resize', function(foo) {
+        mediaLog('resize', foo);
+      });
+
+      jwplayer().on('levels', function(foo) {
+        mediaLog('levels', foo);
+      });
+
+      jwplayer().on('levelsChanged', function(foo) {
+        mediaLog('levelsChanged', foo);
+      });
+
+      jwplayer().on('captionsList', function(foo) {
+        mediaLog('captionsList', foo);
+      });
+
+      jwplayer().on('captionsChange', function(foo) {
+        mediaLog('captionsChange', foo);
+      });
+
+      jwplayer().on('controls', function(foo) {
+        mediaLog('controls', foo);
+      });
+
+      jwplayer().on('displayClick', function(foo) {
+        mediaLog('displayClick', foo);
+      });
+
+      jwplayer().on('adClick', function(foo) {
+        adLog('adClick', foo);
+      });
+
+      jwplayer().on('adBlock', function(foo) {
+        adLog('adBlock', foo);
+      });
+
+      jwplayer().on('adRequest', function(foo) {
+        adLog('adRequest', foo);
+      });
+
+      jwplayer().on('adBidRequest', function(foo) {
+        adLog('adBidRequest', foo);
+      });
+
+      jwplayer().on('adBidResponse', function(foo) {
+        adLog('adBidResponse', foo);
+      });
+
+      jwplayer().on('adCompanions', function(foo) {
+        adLog('adCompanions', foo);
+      });
+
+      jwplayer().on('adComplete', function(foo) {
+        adLog('adComplete', foo);
+      });
+
+      jwplayer().on('adError', function(foo) {
+        adLog('adError', foo);
+      });
+
+      jwplayer().on('adImpression', function(foo) {
+        adLog('adImpression', foo);
+      });
+
+      jwplayer().on('adViewImpression', function(foo) {
+        adLog('adViewImpression', foo);
+      });
+
+      jwplayer().on('adPlay', function(foo) {
+        adLog('adPlay', foo);
+      });
+
+      jwplayer().on('adPause', function(foo) {
+        adLog('adPause', foo);
+      });
+
+      jwplayer().on('adBreakStart', foo => {
+        adLog('adBreakStart', foo);
+        trackAdBreakStart(foo);
+      });
+
+      jwplayer().on('adBreakEnd', foo => {
+        adLog('adBreakEnd', foo);
+        trackAdBreakComplete();
+      });
+
+      jwplayer().on('adManager', foo => {
+        adLog('adManager', foo);
+      });
+
+      jwplayer().on('adMeta', foo => {
+        adLog('adMeta', foo);
+
+        adData.title = foo.adTitle;
+        adData.id = foo.id; // TODO: Should we use `id` or `adPlayId` ?
+      });
+
+      jwplayer().on('adSchedule', foo => {
+        // Seems to start first (with regards to ads) when loading player
+        adLog('adSchedule', foo);
+      });
+
+      jwplayer().on('adTime', function(foo) {
+        adLog('adTime', foo);
+
+        // TODO: Decide if this needs to be removed
+        // As far as I can tell, this is where ad duration is available
+
+        // Update ad data length in case it's not set
+        if (!adData.length) {
+          adData.length = foo.duration;
+        }
+
+        // If we haven't created the ad object, create it now
+        if (!adObject) {
+          adObject = createAdObject(adData);
+          trackAdStart();
+        }
+      });
+
+      jwplayer().on('adSkipped', function(foo) {
+        adLog('adSkipped', foo);
+      });
+
+      jwplayer().on('beforePlay', function(foo) {
+        mediaLog('beforePlay', foo);
+        if (!sessionStarted) {
+          trackSessionStart();
+        }
+      });
+
+      jwplayer().on('beforeComplete', function(foo) {
+        mediaLog('beforeComplete', foo);
+      });
+
+      jwplayer().on('visualQuality', function(foo) {
+        mediaLog('visualQuality', foo);
+
+        // TODO: Might be a good place for QoS
+      });
+
+      jwplayer().on('meta', function(foo) {
+        mediaLog('meta', foo);
+
+        mediaObject.duration = foo.duration;
+      });
+
+      // jwplayer()
+      //     .getPlugin('sharing')
+      //     .on('open', function (foo) {
+      //         mediaLog('Sharing: open', foo);
+      //     });
+      //
+      // jwplayer()
+      //     .getPlugin('sharing')
+      //     .on('close', function (foo) {
+      //         mediaLog('Sharing: close', foo);
+      //     });
+      //
+      // jwplayer()
+      //     .getPlugin('sharing')
+      //     .on('click', function (foo) {
+      //         mediaLog('Sharing: click', foo);
+      //     });
+      //
+      // jwplayer()
+      //     .getPlugin('related')
+      //     .on('open', function (foo) {
+      //         mediaLog('Related: open', foo);
+      //     });
+      //
+      // jwplayer()
+      //     .getPlugin('related')
+      //     .on('close', function (foo) {
+      //         mediaLog('Related: close', foo);
+      //     });
+      //
+      // jwplayer()
+      //     .getPlugin('related')
+      //     .on('play', function (foo) {
+      //         mediaLog('Related: play', foo);
+      //     });
+
+      // *** ADOBE HEARTBEAT ****
+
+      // Media Heartbeat initialization
+      var MediaHeartbeat = ADB.va.MediaHeartbeat;
+      var MediaHeartbeatConfig = ADB.va.MediaHeartbeatConfig;
+      var MediaHeartbeatDelegate = ADB.va.MediaHeartbeatDelegate;
+      var mediaConfig = new MediaHeartbeatConfig();
+
+      mediaConfig.trackingServer = 'exchangepartnermparticle.sc.omtrdc.net';
+      mediaConfig.playerName = "Alex's JW Player";
+      mediaConfig.channel = 'test-jw-heartbeat';
+      mediaConfig.debugLogging = true;
+      mediaConfig.appVersion = '0.0.1';
+      mediaConfig.ssl = false;
+      mediaConfig.ovp = 'WHATISOVP';
+
+      var mediaDelegate = new MediaHeartbeatDelegate();
+      mediaDelegate.getCurrentPlaybackTime = function() {
+        // TODO: is there a better way of doing this?
+        console.warn('player time', jwplayer('player').getCurrentTime());
+        return jwplayer('player').getCurrentTime();
+      };
+
+      // // Replace <bitrate>, <startuptime>, <fps> and <droppeFrames> with the current playback QoS values.
+      // mediaDelegate.getQoSObject = function() {
+      //     return MediaHeartbeat.createQoSObject(<bitrate>, <startuptime>, <fps>, <droppedFrames>);
+      // };
+
+      const visitor = Visitor.getInstance('FC453F49575E99177F000101@AdobeOrg');
+
+      const appMeasurement = new AppMeasurement('mpampaalexmediatest');
+      appMeasurement.visitor = visitor;
+      appMeasurement.trackingServer = 'exchangepartnermparticle.sc.omtrdc.net';
+      appMeasurement.account = 'mpampaalexmediatest';
+      appMeasurement.pageName = 'my_page_name';
+      appMeasurement.charSet = 'UTF­8';
+
+      mediaHeartbeat = new MediaHeartbeat(
+        mediaDelegate,
+        mediaConfig,
+        appMeasurement
+      );
+
+      function trackSessionStart() {
+        demoLog('Media Object', mediaObject);
+
+        // if (!mediaObject.title && !mediaObject.duration) {
+        //   return false;
+        // }
+
+        var adobeMediaObject = MediaHeartbeat.createMediaObject(
+          mediaObject.name,
+          mediaObject.id,
+          mediaObject.duration,
+          MediaHeartbeat.StreamType.VOD,
+          'video'
+        );
+
+        demoLog('Adobe Media Object', adobeMediaObject);
+
+        mediaHeartbeat.trackSessionStart(adobeMediaObject, customVideoMetadata);
+
+        sessionStarted = true;
+      }
+
+      function trackSessionEnd() {
+        if (
+          !mediaHeartbeat &&
+          !mediaHeartbeat.hasOwnProperty('trackSessionEnd')
+        ) {
+          console.warn(
+            "mediaHeartbeat isn't initiated. Cannot trackSessionEnd"
+          );
+          return false;
+        }
+        console.warn('endinging Session');
+        mediaHeartbeat.trackSessionEnd();
+      }
+
+      function trackPlay() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackPlay')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackPlay");
+          return false;
+        }
+        mediaHeartbeat.trackPlay();
+      }
+
+      function trackPause() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackPause')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackPause");
+          return false;
+        }
+        mediaHeartbeat.trackPause();
+      }
+
+      function trackComplete() {
+        if (
+          !mediaHeartbeat &&
+          !mediaHeartbeat.hasOwnProperty('trackComplete')
+        ) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackComplete");
+          return false;
+        }
+        mediaHeartbeat.trackComplete();
+      }
+
+      function trackBufferStart() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackEvent')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackEvent");
+          return false;
+        }
+        mediaHeartbeat.trackEvent(MediaHeartbeat.Event.BufferStart);
+      }
+
+      function trackBufferComplete() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackEvent')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackEvent");
+          return false;
+        }
+        mediaHeartbeat.trackEvent(MediaHeartbeat.Event.BufferComplete);
+      }
+
+      function trackAdBreakStart(adBreakObj) {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackEvent')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackEvent");
+          return false;
+        }
+
+        var adposition = adBreakObj.adposition;
+        var sequence = adBreakObj.sequence;
+        var offset = adBreakObj.offset;
+
+        var adPositionMap = {
+          pre: 'pre-roll',
+          mid: 'mid-roll',
+          post: 'post-roll'
+        };
+
+        // for some reason, in my tests, offset is returning the value that adposition should
+        // Adobe calls JW Player's "position" the "ad name", but the Adobe "position" is the
+        // index of the ad.
+        // Because reasons...
+        var adPosition = adposition || offset;
+        // Also, for some reason, mid-roll doesn't return as a 'mid-roll'
+        var adName = adPositionMap[adPosition] || 'mid-roll';
+
+        // This is the position in the array of ads for this break. I think.
+        var position = sequence || 1;
+
+        // Current play head
+        var startTime = jwplayer('player').getCurrentTime();
+
+        var adBreakObject = MediaHeartbeat.createAdBreakObject(
+          adName,
+          position,
+          startTime
+        );
+
+        adLog('Ad Break Start', adBreakObject);
+
+        adData.adName = adName;
+        adData.position = position;
+        adData.startTime = startTime;
+
+        mediaHeartbeat.trackEvent(
+          MediaHeartbeat.Event.AdBreakStart,
+          adBreakObject
+        );
+      }
+
+      function createAdObject(adObj) {
+        var adObject = MediaHeartbeat.createAdObject(
+          adObj.adName,
+          adObj.id,
+          adObj.position,
+          adObj.length
+        );
+        adLog('creating ad object', adObject);
+        return adObject;
+      }
+
+      function trackAdStart() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackEvent')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackEvent");
+          return false;
+        }
+
+        adLog('Ad Start');
+
+        mediaHeartbeat.trackEvent(
+          MediaHeartbeat.Event.AdStart,
+          adObject,
+          adCustomMetadata
+        );
+      }
+
+      function trackAdComplete() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackEvent')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackEvent");
+          return false;
+        }
+        adLog('Ad Complete');
+        mediaHeartbeat.trackEvent(MediaHeartbeat.Event.AdComplete);
+      }
+
+      function trackAdBreakComplete() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackEvent')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackEvent");
+          return false;
+        }
+        adLog('Ad Break Complete');
+        mediaHeartbeat.trackEvent(MediaHeartbeat.Event.AdBreakComplete);
+      }
+
+      function trackAdSkip() {
+        if (!mediaHeartbeat && !mediaHeartbeat.hasOwnProperty('trackEvent')) {
+          console.warn("mediaHeartbeat isn't initiated. Cannot trackEvent");
+          return false;
+        }
+        adLog('Ad Skip');
+        mediaHeartbeat.trackEvent(MediaHeartbeat.Event.AdSkip);
+      }
+    </script>
+  </body>
+</html>

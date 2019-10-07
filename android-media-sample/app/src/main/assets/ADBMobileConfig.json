@@ -1,0 +1,27 @@
+{
+  "version" : "1.0",
+  "analytics" : {
+    "rsids" : "mpawilldroid",
+    "server" : "exchangepartnermparticle.hb.omtrdc.net/",
+    "charset" : "UTF-8",
+    "ssl" : false,
+    "offlineEnabled" : false,
+    "lifecycleTimeout" : 30,
+    "batchLimit" : 50,
+    "privacyDefault" : true,
+    "poi" : []
+  },
+  "marketingCloud": {
+    "org": "FC453F49575E99177F000101@AdobeOrg"
+  },
+
+  "target" : {
+    "clientCode" : "amsdk",
+    "timeout" : 5
+  },
+
+  "audienceManager" : {
+    "server" : ""
+  }
+
+}

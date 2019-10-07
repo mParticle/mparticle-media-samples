@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js">
+    <!--<![endif]-->
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <title>Brightcove + Adobe Heartbeat</title>
+        <meta name="description" content="" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="" />
+
+        <script src="../utils/utils.js"></script>
+        <script src="../assets/AppMeasurement.js"></script>
+        <script src="../assets/VisitorAPI.js"></script>
+        <script src="../assets/MediaSDK.min.js"></script>
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="browsehappy">
+                You are using an <strong>outdated</strong> browser. Please
+                <a href="#">upgrade your browser</a> to improve your experience.
+            </p>
+        <![endif]-->
+
+        <h1>Brightcove Player + Adobe Heartbeat</h1>
+
+        <div style="position: relative; display: block; max-width: 1280px;">
+            <div style="padding-top: 56.25%;">
+                <video-js
+                    data-video-id="5819230967001"
+                    data-account-id="1752604059001"
+                    data-player="default"
+                    data-embed="default"
+                    controls=""
+                    data-application-id=""
+                    class="video-js"
+                    style="position: absolute; top: 0px; right: 0px; bottom: 0px; left: 0px; width: 100%; height: 100%;"
+                >
+                </video-js>
+                <script src="//players.brightcove.net/1752604059001/default_default/index.min.js"></script>
+            </div>
+        </div>
+
+        <script async defer>
+            var mediaObject = {};
+            var sessionStarted = false;
+            var mediaHeartbeat = {};
+            var customVideoMetadata = {};
+
+            // *** Brightcove Player Init ****
+            var player = videojs.getAllPlayers()[0];
+
+            player.on('ready', function(foo) {
+                mediaLog('ready', foo);
+            });
+
+            player.on('loadedmetadata', (foo, bar) => {
+                mediaLog('loadedmetadata', foo);
+
+                mediaObject.name = player.mediainfo.name;
+                mediaObject.id = player.mediainfo.id;
+                mediaObject.streamType = 'vod';
+                mediaObject.mediaType = 'video';
+                mediaObject.duration = player.duration();
+            });
+
+            player.on('progress', function(foo) {
+                mediaLog('progress', foo);
+            });
+
+            player.on('waiting', function(foo) {
+                mediaLog('waiting', foo);
+            });
+
+            player.on('stalled', function(foo) {
+                mediaLog('stalled', foo);
+            });
+
+            player.on('error', function(foo) {
+                mediaLog('error', foo);
+            });
+
+            player.on('play', function(foo) {
+                mediaLog('play', foo);
+
+                if (!sessionStarted) {
+                    trackSessionStart();
+                }
+            });
+
+            player.on('pause', function(foo) {
+                mediaLog('pause', foo);
+                trackPause();
+            });
+
+            player.on('playing', function(foo) {
+                mediaLog('playing', foo);
+
+                trackPlay();
+            });
+
+            player.on('ratechange', function(foo) {
+                mediaLog('ratechange', foo);
+            });
+
+            player.on('loadstart', function(foo) {
+                mediaLog('loadstart', foo);
+            });
+
+            player.on('loadeddata', function(foo) {
+                mediaLog('loadeddata', foo);
+            });
+
+            player.on('fullscreenchange', function(foo) {
+                mediaLog('fullscreenchange', foo);
+            });
+
+            player.on('ads-request', function(foo) {
+                mediaLog('ads-request', foo);
+            });
+
+            player.on('ads-load', function(foo) {
+                mediaLog('ads-load', foo);
+            });
+
+            player.on('ads-ad-started', function(foo) {
+                mediaLog('ads-ad-started', foo);
+            });
+
+            player.on('ads-ad-ended', function(foo) {
+                mediaLog('ads-ad-ended', foo);
+            });
+
+            player.on('ads-pause', function(foo) {
+                mediaLog('ads-pause', foo);
+            });
+
+            player.on('ads-play', function(foo) {
+                mediaLog('ads-play', foo);
+            });
+
+            player.on('ads-first-quartile', function(foo) {
+                mediaLog('ads-first-quartile', foo);
+            });
+
+            player.on('ads-midpoint', function(foo) {
+                mediaLog('ads-midpoint', foo);
+            });
+
+            player.on('ads-third-quartile', function(foo) {
+                mediaLog('ads-third-quartile', foo);
+            });
+
+            player.on('ads-click', function(foo) {
+                mediaLog('ads-click', foo);
+            });
+
+            player.on('ads-volumechange', function(foo) {
+                mediaLog('ads-volumechange', foo);
+            });
+
+            player.on('ads-pod-started', function(foo) {
+                mediaLog('ads-pod-started', foo);
+            });
+
+            player.on('ads-pod-ended', function(foo) {
+                mediaLog('ads-pod-ended', foo);
+            });
+
+            player.on('ads-allpods-completed', function(foo) {
+                mediaLog('ads-allpods-completed', foo);
+            });
+
+            player.on('bc-catalog-error', function(foo) {
+                mediaLog('bc-catalog-error', foo);
+            });
+
+            player.on('progress', function(foo) {
+                mediaLog('progress', foo);
+
+                // TODO: Buffer Player doesn't really have a buffer start/stop/complete
+
+                if (sessionStarted) {
+                    trackBufferStart();
+                    trackBufferComplete();
+                }
+            });
+
+            player.on('timeupdate', function(foo) {
+                mediaLog('timeupdate', foo);
+            });
+
+            player.on('ended', function(foo) {
+                mediaLog('ended', foo);
+                trackComplete();
+            });
+
+            // *** ADOBE HEARTBEAT ****
+
+            // Media Heartbeat initialization
+            var MediaHeartbeat = ADB.va.MediaHeartbeat;
+            var MediaHeartbeatConfig = ADB.va.MediaHeartbeatConfig;
+            var MediaHeartbeatDelegate = ADB.va.MediaHeartbeatDelegate;
+            var mediaConfig = new MediaHeartbeatConfig();
+
+            mediaConfig.trackingServer =
+                'exchangepartnermparticle.sc.omtrdc.net';
+            mediaConfig.playerName = "Alex's Brightcove Player";
+            mediaConfig.channel = 'test-brightcove-heartbeat';
+            mediaConfig.debugLogging = true;
+            mediaConfig.appVersion = '0.0.1';
+            mediaConfig.ssl = false;
+            mediaConfig.ovp = 'WHATISOVP';
+
+            var mediaDelegate = new MediaHeartbeatDelegate();
+            mediaDelegate.getCurrentPlaybackTime = function() {
+                return player.currentTime();
+            };
+
+            // // Replace <bitrate>, <startuptime>, <fps> and <droppeFrames> with the current playback QoS values.
+            // mediaDelegate.getQoSObject = function() {
+            //     return MediaHeartbeat.createQoSObject(<bitrate>, <startuptime>, <fps>, <droppedFrames>);
+            // };
+
+            const visitor = Visitor.getInstance(
+                'FC453F49575E99177F000101@AdobeOrg'
+            );
+
+            const appMeasurement = new AppMeasurement('mpampaalexmediatest');
+            appMeasurement.visitor = visitor;
+            appMeasurement.trackingServer =
+                'exchangepartnermparticle.sc.omtrdc.net';
+            appMeasurement.account = 'mpampaalexmediatest';
+            appMeasurement.pageName = 'my_page_name';
+            appMeasurement.charSet = 'UTF­8';
+
+            mediaHeartbeat = new MediaHeartbeat(
+                mediaDelegate,
+                mediaConfig,
+                appMeasurement
+            );
+
+            function trackSessionStart() {
+                demoLog('Media Object', mediaObject);
+
+                if (!mediaObject.title && !mediaObject.duration) {
+                    return false;
+                }
+
+                var adobeMediaObject = MediaHeartbeat.createMediaObject(
+                    mediaObject.name,
+                    mediaObject.id,
+                    mediaObject.duration,
+                    MediaHeartbeat.StreamType.VOD,
+                    'video'
+                );
+
+                demoLog('Adobe Media Object', adobeMediaObject);
+
+                mediaHeartbeat.trackSessionStart(
+                    adobeMediaObject,
+                    customVideoMetadata
+                );
+
+                sessionStarted = true;
+            }
+
+            function trackSessionEnd() {
+                if (
+                    !mediaHeartbeat &&
+                    !mediaHeartbeat.hasOwnProperty('trackSessionEnd')
+                ) {
+                    console.warn(
+                        "mediaHeartbeat isn't initiated. Cannot trackSessionEnd"
+                    );
+                    return false;
+                }
+                console.warn('endinging Session');
+                mediaHeartbeat.trackSessionEnd();
+            }
+
+            function trackPlay() {
+                if (
+                    !mediaHeartbeat &&
+                    !mediaHeartbeat.hasOwnProperty('trackPlay')
+                ) {
+                    console.warn(
+                        "mediaHeartbeat isn't initiated. Cannot trackPlay"
+                    );
+                    return false;
+                }
+                mediaHeartbeat.trackPlay();
+            }
+
+            function trackPause() {
+                if (
+                    !mediaHeartbeat &&
+                    !mediaHeartbeat.hasOwnProperty('trackPause')
+                ) {
+                    console.warn(
+                        "mediaHeartbeat isn't initiated. Cannot trackPause"
+                    );
+                    return false;
+                }
+                mediaHeartbeat.trackPause();
+            }
+
+            function trackComplete() {
+                if (
+                    !mediaHeartbeat &&
+                    !mediaHeartbeat.hasOwnProperty('trackComplete')
+                ) {
+                    console.warn(
+                        "mediaHeartbeat isn't initiated. Cannot trackComplete"
+                    );
+                    return false;
+                }
+                mediaHeartbeat.trackComplete();
+            }
+
+            function trackBufferStart() {
+                if (
+                    !mediaHeartbeat &&
+                    !mediaHeartbeat.hasOwnProperty('trackEvent')
+                ) {
+                    console.warn(
+                        "mediaHeartbeat isn't initiated. Cannot trackEvent"
+                    );
+                    return false;
+                }
+                mediaHeartbeat.trackEvent(MediaHeartbeat.Event.BufferStart);
+            }
+
+            function trackBufferComplete() {
+                if (
+                    !mediaHeartbeat &&
+                    !mediaHeartbeat.hasOwnProperty('trackEvent')
+                ) {
+                    console.warn(
+                        "mediaHeartbeat isn't initiated. Cannot trackEvent"
+                    );
+                    return false;
+                }
+                mediaHeartbeat.trackEvent(MediaHeartbeat.Event.BufferComplete);
+            }
+        </script>
+    </body>
+</html>
