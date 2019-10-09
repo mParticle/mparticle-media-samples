@@ -1,6 +1,6 @@
 import SwiftUI
 import mParticle_Apple_SDK
-import mParticle_Apple_Media
+import mParticle_Apple_Media_SDK
 
 let jwVideoID = "http://playertest.longtailvideo.com/adaptive/oceans/oceans.m3u8"
 let jwPosterImage = "http://d3el35u4qe4frz.cloudfront.net/bkaovAYt-480.jpg"
@@ -43,7 +43,7 @@ class JWPlayerDSP: NSObject, JWPlayerDelegate, JWAVPlayerAnalyticsDelegate {
         player?.delegate = self
         player?.analyticsDelegate = self
         
-        mediaSession = MPMediaSession.init(coreSDK: MParticle.sharedInstance(), title: player?.config.title ?? "default", mediaContentId: jwVideoID, duration: NSNumber(value: Float(player?.duration ?? 0.0)), contentType: MPMediaContentType.video, streamType: MPMediaStreamType.onDemand)
+        mediaSession = MPMediaSession.init(coreSDK: MParticle.sharedInstance(), mediaContentId: jwVideoID, title: player?.config.title ?? "default", duration: NSNumber(value: Float(player?.duration ?? 0.0)), contentType: MPMediaContentType.video, streamType: MPMediaStreamType.onDemand)
 
         let notificationCenter = NotificationCenter.default
         notificationCenter.addObserver(self, selector: #selector(appMovedToBackground), name: UIApplication.willResignActiveNotification, object: nil)

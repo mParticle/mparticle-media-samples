@@ -1,7 +1,7 @@
 import SwiftUI
 import BrightcovePlayerSDK
 import mParticle_Apple_SDK
-import mParticle_Apple_Media
+import mParticle_Apple_Media_SDK
 
 let kViewControllerPlaybackServicePolicyKey = "BCpkADawqM3n0ImwKortQqSZCgJMcyVbb8lJVwt0z16UD0a_h8MpEYcHyKbM8CGOPxBRp0nfSVdfokXBrUu3Sso7Nujv3dnLo0JxC_lNXCl88O7NJ0PR0z2AprnJ_Lwnq7nTcy1GBUrQPr5e"
 let kViewControllerAccountID = "4800266849001"
@@ -44,7 +44,7 @@ class BrightcovePlayerDSP: NSObject, BCOVPlaybackControllerDelegate, BCOVPUIPlay
         
         self.findVideo(videoID: kViewControllerVideoID)
         
-        mediaSession = MPMediaSession.init(coreSDK: MParticle.sharedInstance(), title: self.bcVideo?.properties[kBCOVPlaylistPropertiesKeyName] as? String ?? "no title", mediaContentId: kViewControllerVideoID, duration: nil, contentType: MPMediaContentType.video, streamType: MPMediaStreamType.onDemand)
+        mediaSession = MPMediaSession.init(coreSDK: MParticle.sharedInstance(), mediaContentId: kViewControllerVideoID, title: self.bcVideo?.properties[kBCOVPlaylistPropertiesKeyName] as? String ?? "no title",  duration: nil, contentType: MPMediaContentType.video, streamType: MPMediaStreamType.onDemand)
         
         let notificationCenter = NotificationCenter.default
         notificationCenter.addObserver(self, selector: #selector(appMovedToBackground), name: UIApplication.willResignActiveNotification, object: nil)
