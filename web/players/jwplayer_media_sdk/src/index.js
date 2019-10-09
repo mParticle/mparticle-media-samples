@@ -6,7 +6,7 @@ const mParticleConfig = {
     isDevelopmentMode: true
 }
 
-var apiKey = '9e77ff19b9fa2b4fa33fa0ef322addf4'; //alex QA
+var apiKey = 'YOUR API KEY HERE';
 
 Adobe.register(mParticleConfig);
 
