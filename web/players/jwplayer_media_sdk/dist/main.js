@@ -81,12 +81,11 @@
 /******/
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 4);
+/******/ 	return __webpack_require__(__webpack_require__.s = 3);
 /******/ })
 /************************************************************************/
 /******/ ([
-/* 0 */,
-/* 1 */
+/* 0 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -490,7 +489,7 @@ module.exports = MediaSession;
 
 
 /***/ }),
-/* 2 */
+/* 1 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /* WEBPACK VAR INJECTION */(function(global) {function Common() {
@@ -1530,10 +1529,10 @@ function s_pgicq(){var r=window,a=r.s_giq,k,p,n;if(a)for(k=0;k<a.length;k++)p=a[
 
 module.exports = AdobeClientSideKit_esm;
 
-/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(3)))
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(2)))
 
 /***/ }),
-/* 3 */
+/* 2 */
 /***/ (function(module, exports) {
 
 var g;
@@ -1559,7 +1558,7 @@ module.exports = g;
 
 
 /***/ }),
-/* 4 */
+/* 3 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -3286,11 +3285,11 @@ mParticle$1.Logger=new Logger(b),mParticle$1.Store=new Store(b,mParticle$1.Logge
 /* harmony default export */ var mparticle_esm = (mParticle$1);
 
 // EXTERNAL MODULE: ./node_modules/@mparticle/web-media-sdk/dist/mparticle-media.common.js
-var mparticle_media_common = __webpack_require__(1);
+var mparticle_media_common = __webpack_require__(0);
 var mparticle_media_common_default = /*#__PURE__*/__webpack_require__.n(mparticle_media_common);
 
 // EXTERNAL MODULE: ./node_modules/@mparticle/web-adobe-client-kit/dist/AdobeClientSideKit.common.js
-var AdobeClientSideKit_common = __webpack_require__(2);
+var AdobeClientSideKit_common = __webpack_require__(1);
 var AdobeClientSideKit_common_default = /*#__PURE__*/__webpack_require__.n(AdobeClientSideKit_common);
 
 // CONCATENATED MODULE: ./src/index.js
@@ -3300,15 +3299,9 @@ var AdobeClientSideKit_common_default = /*#__PURE__*/__webpack_require__.n(Adobe
 
 const mParticleConfig = {
     isDevelopmentMode: true
-}
+};
 
-var apiKey = '9e77ff19b9fa2b4fa33fa0ef322addf4'; //alex QA
-console.log(mParticleConfig);
-
-mParticleConfig.configUrl = "jssdk-origin-qa1.qa.corp.mparticle.com/js/v2/";
-mParticleConfig.identityUrl = "identity-qa1.qa.corp.mparticle.com/v1/";
-mParticleConfig.v2ServiceUrl = "jssdks-qa1.qa.corp.mparticle.com/v2/JS/";
-mParticleConfig.v2SecureServiceUrl = "jssdks-qa1.qa.corp.mparticle.com/v2/JS/";
+var apiKey = 'us1-163fa0c573a70f489696978145cf8d53'; // YOUR API KEY HERE
 
 AdobeClientSideKit_common_default.a.register(mParticleConfig);
 
@@ -3322,6 +3315,7 @@ window.mediaSDK = new mparticle_media_common_default.a(
 );
 
 mparticle_esm.init(apiKey, mParticleConfig);
+
 
 /***/ })
 /******/ ]);
