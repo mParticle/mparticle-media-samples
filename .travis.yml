@@ -14,3 +14,6 @@ jobs:
         - 'cd ./web/players/jwplayer_media_sdk/'
         - 'npm install'
         - 'npm run deploy'
+
+deploy:
+  github_token: $GITHUB_TOKEN
