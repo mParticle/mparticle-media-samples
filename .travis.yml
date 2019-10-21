@@ -5,7 +5,6 @@ env:
   global:
     #    - GITHUB_REPO: 'mParticle/mparticle-media-samples'
     - GITHUB_REPO: 'alexs-mparticle/test-repo-magic'
-    - GITHUB_TOKEN: $GITHUB_TOKEN
 
 jobs:
   include:
