@@ -5,3 +5,12 @@ env:
   global:
     #    - GITHUB_REPO: 'mParticle/mparticle-media-samples'
     - GITHUB_REPO: 'alexs-mparticle/test-repo-magic'
+
+jobs:
+  include:
+    - stage: 'Web Demo'
+      name: 'Web Demo'
+      script:
+        - 'cd ./web/players/jwplayer_media_sdk/'
+        - 'npm install'
+        - 'npm run deploy'
