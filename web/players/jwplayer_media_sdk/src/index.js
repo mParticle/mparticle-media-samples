@@ -4,7 +4,7 @@ import Adobe from '@mparticle/web-adobe-client-kit';
 
 const mParticleConfig = {
     isDevelopmentMode: true
-}
+};
 
 var apiKey = 'YOUR API KEY HERE';
 
@@ -16,7 +16,9 @@ window.mediaSDK = new MediaSession(
     'My sweet sweet media',
     120000,
     'Video',
-    'OnDemand'
+    'OnDemand',
+    true,
+    true
 );
 
 mParticle.init(apiKey, mParticleConfig);
