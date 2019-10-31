@@ -120,12 +120,28 @@ function __extends(d, b) {
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 }
 
+var __assign = function() {
+    __assign = Object.assign || function __assign(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+
 // This will live in a declaration file in core sdk
 // once we set that up.
 var MessageType;
 (function (MessageType) {
+    MessageType[MessageType["PageEvent"] = 4] = "PageEvent";
     MessageType[MessageType["Media"] = 20] = "Media";
 })(MessageType || (MessageType = {}));
+var EventType;
+(function (EventType) {
+    EventType[EventType["Media"] = 9] = "Media";
+})(EventType || (EventType = {}));
 var MediaEventType;
 (function (MediaEventType) {
     MediaEventType[MediaEventType["Play"] = 23] = "Play";
@@ -149,25 +165,89 @@ var MediaEventType;
     MediaEventType[MediaEventType["SegmentSkip"] = 45] = "SegmentSkip";
     MediaEventType[MediaEventType["UpdateQoS"] = 46] = "UpdateQoS";
 })(MediaEventType || (MediaEventType = {}));
+var MediaEventName = {
+    Play: 'Play',
+    Pause: 'Pause',
+    MediaContentEnd: 'Media Content End',
+    SessionStart: 'Media Session Start',
+    SessionEnd: 'Media Session End',
+    SeekStart: 'Seek Start',
+    SeekEnd: 'Seek End',
+    BufferStart: 'Buffer Start',
+    BufferEnd: 'Buffer End',
+    UpdatePlayheadPosition: 'Update Playhead Position',
+    AdClick: 'Ad Click',
+    AdBreakStart: 'Ad Break Start',
+    AdBreakEnd: 'Ad Break End',
+    AdStart: 'Ad Start',
+    AdEnd: 'Ad End',
+    AdSkip: 'Ad Skip',
+    SegmentStart: 'Segment Start',
+    SegmentEnd: 'Segment End',
+    SegmentSkip: 'Segment Skip',
+    UpdateQoS: 'Update QoS',
+};
 var MediaContentType;
 (function (MediaContentType) {
-    MediaContentType[MediaContentType["Video"] = 0] = "Video";
-    MediaContentType[MediaContentType["Audio"] = 1] = "Audio";
+    MediaContentType["Video"] = "Video";
+    MediaContentType["Audio"] = "Audio";
 })(MediaContentType || (MediaContentType = {}));
 var MediaStreamType;
 (function (MediaStreamType) {
-    MediaStreamType[MediaStreamType["LiveStream"] = 0] = "LiveStream";
-    MediaStreamType[MediaStreamType["OnDemand"] = 1] = "OnDemand";
+    MediaStreamType["LiveStream"] = "LiveStream";
+    MediaStreamType["OnDemand"] = "OnDemand";
 })(MediaStreamType || (MediaStreamType = {}));
+var ValidMediaAttributeKeys = {
+    mediaSessionId: 'media_session_id',
+    playheadPosition: 'playhead_position',
+    id: 'id',
+    //MediaConent
+    contentTitle: 'content_title',
+    contentId: 'content_id',
+    duration: 'content_duration',
+    streamType: 'stream_type',
+    contentType: 'content_type',
+    //Seek
+    seekPosition: 'seek_position',
+    //Buffer
+    bufferDuration: 'buffer_duration',
+    bufferPercent: 'buffer_percent',
+    bufferPosition: 'buffer_position',
+    //QoS
+    qosBitrate: 'qos_bitrate',
+    qosFramesPerSecond: 'qos_fps',
+    qosStartupTime: 'qos_startup_time',
+    qosDroppedFrames: 'qos_dropped_frames',
+    //MediaAd
+    adTitle: 'ad_content_title',
+    adDuration: 'ad_content_duration',
+    adId: 'ad_content_id',
+    adAdvertiserId: 'ad_content_advertiser',
+    adCampaign: 'ad_content_campaign',
+    adCreative: 'ad_content_creative',
+    adPlacement: 'ad_content_placement',
+    adSiteId: 'ad_content_site_id',
+    //MediaAdBreak
+    adBreakTitle: 'ad_break_title',
+    adBreakDuration: 'ad_break_duration',
+    adBreakPlaybackTime: 'ad_break_playback_time',
+    adBreakId: 'ad_break_id',
+    //Segment
+    segmentTitle: 'segment_title',
+    segmentIndex: 'segment_index',
+    segmentDuration: 'segment_duration',
+};
 
 var uuid = function () {
+    // Thanks to StackOverflow user Briguy37
+    // https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         var r = (Math.random() * 16) | 0, v = c === 'x' ? r : (r & 0x3) | 0x8;
         return v.toString(16);
     });
 };
 var getNameFromType = function (type) {
-    return MediaEventType[type];
+    return MediaEventName[MediaEventType[type]];
 };
 
 /**
@@ -177,12 +257,12 @@ var BaseEvent = /** @class */ (function () {
     /**
      *
      * @param name The name of the event
-     * @param type an Event Type that corresponds to [EventType](https://github.com/mParticle/mparticle-web-sdk/blob/master/src/types.js) in Core SDK
+     * @param eventType an Event Type that corresponds to [EventType](https://github.com/mParticle/mparticle-web-sdk/blob/master/src/types.js) in Core SDK
      * @param messageType A message type that corresponds to MessageType
      */
-    function BaseEvent(name, type, messageType) {
+    function BaseEvent(name, eventType, messageType) {
         this.name = name;
-        this.type = type;
+        this.eventType = eventType;
         this.messageType = messageType;
         /**
          * @hidden Abstract representation of a Base Event for the Server model in Core SDK
@@ -203,18 +283,141 @@ var MediaEvent = /** @class */ (function (_super) {
      * @param contentId Unique Identifier for the Media Content
      * @param duration Length of time for the Media Content
      * @param contentType Content Type. i.e. video vs audio
-     * @param streamType Stream Type i.e. live vs on demaind
+     * @param streamType Stream Type i.e. live vs on demand
+     * @param mediaSessionID Session ID from media Session
      * @returns An instance of a Media Event
      */
-    function MediaEvent(type, contentTitle, contentId, duration, contentType, streamType) {
-        var _this = _super.call(this, getNameFromType(type), type, MessageType.Media) || this;
-        _this.type = type;
+    function MediaEvent(eventType, contentTitle, contentId, duration, contentType, streamType, mediaSessionID) {
+        var _this = _super.call(this, getNameFromType(eventType), eventType, MessageType.Media) || this;
+        _this.eventType = eventType;
         _this.contentTitle = contentTitle;
         _this.contentId = contentId;
         _this.duration = duration;
         _this.contentType = contentType;
         _this.streamType = streamType;
+        _this.mediaSessionID = mediaSessionID;
         _this.id = uuid();
+        /**
+         * @hidden Returns session related event attributes
+         */
+        _this.getSessionAttributes = function () {
+            var sessionAttributes = {
+                content_title: _this.contentTitle,
+                content_duration: _this.duration,
+                content_id: _this.contentId,
+                content_type: MediaContentType[_this.contentType],
+                stream_type: MediaStreamType[_this.streamType],
+                media_session_id: _this.mediaSessionID,
+            };
+            if (typeof _this.playheadPosition === 'number') {
+                sessionAttributes[ValidMediaAttributeKeys.playheadPosition] = _this.playheadPosition;
+            }
+            return sessionAttributes;
+        };
+        /**
+         * @hidden Representation of the Media Event as a Custom Event
+         */
+        _this.getEventAttributes = function () {
+            var eventAttributes = {};
+            if (_this.seekPosition) {
+                eventAttributes[ValidMediaAttributeKeys.seekPosition] = _this.seekPosition;
+            }
+            if (_this.bufferDuration) {
+                eventAttributes[ValidMediaAttributeKeys.bufferDuration] = _this.bufferDuration;
+            }
+            if (_this.bufferPercent) {
+                eventAttributes[ValidMediaAttributeKeys.bufferPercent] = _this.bufferPercent;
+            }
+            if (_this.bufferPosition) {
+                eventAttributes[ValidMediaAttributeKeys.bufferPosition] = _this.bufferPosition;
+            }
+            // QoS
+            if (_this.qos) {
+                if (typeof _this.qos.bitRate === 'number') {
+                    eventAttributes[ValidMediaAttributeKeys.qosBitrate] = _this.qos.bitRate;
+                }
+                if (typeof _this.qos.fps === 'number') {
+                    eventAttributes[ValidMediaAttributeKeys.qosFramesPerSecond] = _this.qos.fps;
+                }
+                if (typeof _this.qos.startupTime === 'number') {
+                    eventAttributes[ValidMediaAttributeKeys.qosStartupTime] = _this.qos.startupTime;
+                }
+                if (typeof _this.qos.droppedFrames === 'number') {
+                    eventAttributes[ValidMediaAttributeKeys.qosDroppedFrames] = _this.qos.droppedFrames;
+                }
+            }
+            // Ad Content
+            if (_this.adContent) {
+                if (_this.adContent.title) {
+                    eventAttributes[ValidMediaAttributeKeys.adTitle] = _this.adContent.title;
+                }
+                if (_this.adContent.id) {
+                    eventAttributes[ValidMediaAttributeKeys.adId] = _this.adContent.id;
+                }
+                if (_this.adContent.advertiser) {
+                    eventAttributes[ValidMediaAttributeKeys.adAdvertiserId] = _this.adContent.advertiser;
+                }
+                if (_this.adContent.siteid) {
+                    eventAttributes[ValidMediaAttributeKeys.adSiteId] = _this.adContent.siteid;
+                }
+                if (typeof _this.adContent.placement === 'number') {
+                    eventAttributes[ValidMediaAttributeKeys.adPlacement] = _this.adContent.placement;
+                }
+                if (_this.adContent.duration) {
+                    eventAttributes[ValidMediaAttributeKeys.adDuration] = _this.adContent.duration;
+                }
+                if (_this.adContent.creative) {
+                    eventAttributes[ValidMediaAttributeKeys.adCreative] = _this.adContent.creative;
+                }
+                if (_this.adContent.campaign) {
+                    eventAttributes[ValidMediaAttributeKeys.adCampaign] = _this.adContent.campaign;
+                }
+            }
+            // Ad Break
+            if (_this.adBreak) {
+                if (_this.adBreak.id) {
+                    eventAttributes[ValidMediaAttributeKeys.adBreakId] = _this.adBreak.id;
+                }
+                if (_this.adBreak.title) {
+                    eventAttributes[ValidMediaAttributeKeys.adBreakTitle] = _this.adBreak.title;
+                }
+                if (_this.adBreak.duration) {
+                    eventAttributes[ValidMediaAttributeKeys.adBreakDuration] = _this.adBreak.duration;
+                }
+            }
+            // Segments
+            if (_this.segment) {
+                if (_this.segment.title) {
+                    eventAttributes[ValidMediaAttributeKeys.segmentTitle] = _this.segment.title;
+                }
+                if (_this.segment.index) {
+                    eventAttributes[ValidMediaAttributeKeys.segmentIndex] = _this.segment.index;
+                }
+                if (_this.segment.duration) {
+                    eventAttributes[ValidMediaAttributeKeys.segmentDuration] = _this.segment.duration;
+                }
+            }
+            return eventAttributes;
+        };
+        /**
+         * Returns a dictionary of attributes
+         * @returns Object
+         */
+        _this.getAttributes = function () {
+            return __assign({}, _this.getSessionAttributes(), _this.getEventAttributes());
+        };
+        /**
+         * Representation of the Media Event as a Page Event for the core SDK
+         * @returns Object
+         */
+        _this.toPageEvent = function () {
+            return {
+                name: _this.name,
+                eventType: EventType.Media,
+                messageType: MessageType.PageEvent,
+                data: _this.getAttributes(),
+            };
+        };
         /**
          * @hidden Representation of the Media Event for the server model
          */
@@ -222,7 +425,7 @@ var MediaEvent = /** @class */ (function (_super) {
             return {
                 // Core Event Attributes
                 EventName: _this.name,
-                EventCategory: _this.type,
+                EventCategory: _this.eventType,
                 EventDataType: _this.messageType,
                 AdContent: _this.adContent,
                 AdBreak: _this.adBreak,
@@ -257,43 +460,84 @@ var MediaSession = /** @class */ (function () {
      * @param duration The length of time for the complete media content (not including ads or breaks)
      * @param contentType A descriptor for the type of content, i.e. Audio or Video
      * @param streamType A descriptor for the type of stream, i.e. live or on demand
+     * @param logPageEvent A flag that toggles sending mParticle Events to Core SDK
+     * @param logMediaEvent A flag that toggles sending Media Events to Core SDK
      */
-    function MediaSession(mparticleInstance, contentId, title, duration, contentType, streamType) {
+    function MediaSession(mparticleInstance, contentId, title, duration, contentType, streamType, logPageEvent, logMediaEvent) {
+        if (logPageEvent === void 0) { logPageEvent = false; }
+        if (logMediaEvent === void 0) { logMediaEvent = true; }
         this.mparticleInstance = mparticleInstance;
         this.contentId = contentId;
         this.title = title;
         this.duration = duration;
         this.contentType = contentType;
         this.streamType = streamType;
-        this.sessionID = '';
-        this.droppedFrames = 0;
+        this.logPageEvent = logPageEvent;
+        this.logMediaEvent = logMediaEvent;
+        this._sessionId = '';
         this.currentPlayheadPosition = 0;
-        this.currentFramesPerSecond = 0;
+        this.listenerCallback = function () { };
     }
+    Object.defineProperty(MediaSession.prototype, "sessionId", {
+        get: function () {
+            return this._sessionId;
+        },
+        enumerable: true,
+        configurable: true
+    });
     /**
-     * Logs number of frames that have been dropped by the player
-     * @param dropped Number of frames dropped
-     * @category Quality of Service
+     * Creates a base Media Event
+     * @param eventType
      */
-    MediaSession.prototype.logDroppedFrames = function (dropped) {
-        this.droppedFrames += dropped;
+    MediaSession.prototype.createMediaEvent = function (eventType) {
+        return new MediaEvent(eventType, this.title, this.contentId, this.duration, this.contentType, this.streamType, this.sessionId);
+    };
+    /**
+     * Sends MediaEvent to CoreSDK depending on if [logMediaEvent] or [logPageEvent] are set
+     * @param event MediaEvent
+     */
+    MediaSession.prototype.logEvent = function (event) {
+        this.mediaEventListener(event);
+        if (this.logMediaEvent) {
+            this.mparticleInstance.logBaseEvent(event);
+        }
+        if (this.logPageEvent) {
+            if (event.eventType !== MediaEventType.UpdatePlayheadPosition) {
+                var mpEvent = event.toPageEvent();
+                this.mparticleInstance.logBaseEvent(mpEvent);
+            }
+        }
+    };
+    /**
+     * Returns session attributes as a flat object
+     */
+    MediaSession.prototype.getAttributes = function () {
+        return {
+            content_title: this.title,
+            content_duration: this.duration,
+            content_id: this.contentId,
+            content_type: MediaContentType[this.contentType],
+            stream_type: MediaStreamType[this.streamType],
+            playhead_position: this.currentPlayheadPosition,
+            media_session_id: this.sessionId,
+        };
     };
     /**
      * Starts your media session. Should be triggered before any prerolls or ads
      * @category Media
      */
     MediaSession.prototype.logMediaSessionStart = function () {
-        this.sessionID = uuid();
-        var event = new MediaEvent(MediaEventType.SessionStart, this.title, this.contentId, this.duration, this.contentType, this.streamType);
-        this.mparticleInstance.logBaseEvent(event);
+        this._sessionId = uuid();
+        var event = this.createMediaEvent(MediaEventType.SessionStart);
+        this.logEvent(event);
     };
     /**
      * Ends your media session. Should be the method thing triggered, after all ads and content have been completed
      * @category Media
      */
     MediaSession.prototype.logMediaSessionEnd = function () {
-        var event = new MediaEvent(MediaEventType.SessionEnd, this.title, this.contentId, this.duration, this.contentType, this.streamType);
-        this.mparticleInstance.logBaseEvent(event);
+        var event = this.createMediaEvent(MediaEventType.SessionEnd);
+        this.logEvent(event);
     };
     /**
      * Logs when your media content has ended, usually before a post-roll ad.
@@ -301,8 +545,8 @@ var MediaSession = /** @class */ (function () {
      * @category Media
      */
     MediaSession.prototype.logMediaContentEnd = function () {
-        var event = new MediaEvent(MediaEventType.MediaContentEnd, this.title, this.contentId, this.duration, this.contentType, this.streamType);
-        this.mparticleInstance.logBaseEvent(event);
+        var event = this.createMediaEvent(MediaEventType.MediaContentEnd);
+        this.logEvent(event);
     };
     /**
      * Logs when an Ad Break pod has started
@@ -311,18 +555,18 @@ var MediaSession = /** @class */ (function () {
      */
     MediaSession.prototype.logAdBreakStart = function (adBreakContent) {
         this.adBreak = adBreakContent;
-        var event = new MediaEvent(MediaEventType.AdBreakStart, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.AdBreakStart);
         event.adBreak = adBreakContent;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs when an [[AdBreak]] pod has ended
      * @category Advertising
      */
     MediaSession.prototype.logAdBreakEnd = function () {
-        var event = new MediaEvent(MediaEventType.AdBreakEnd, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.AdBreakEnd);
         event.adBreak = this.adBreak;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
         this.adBreak = undefined;
     };
     /**
@@ -332,18 +576,18 @@ var MediaSession = /** @class */ (function () {
      */
     MediaSession.prototype.logAdStart = function (adContent) {
         this.adContent = adContent;
-        var event = new MediaEvent(MediaEventType.AdStart, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.AdStart);
         event.adContent = adContent;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs when a single ad ends
      * @category Advertising
      */
     MediaSession.prototype.logAdEnd = function () {
-        var event = new MediaEvent(MediaEventType.AdEnd, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.AdEnd);
         event.adContent = this.adContent;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
         this.adContent = undefined;
     };
     /**
@@ -351,9 +595,9 @@ var MediaSession = /** @class */ (function () {
      * @category Advertising
      */
     MediaSession.prototype.logAdSkip = function () {
-        var event = new MediaEvent(MediaEventType.AdSkip, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.AdSkip);
         event.adContent = this.adContent;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
         this.adContent = undefined;
     };
     /**
@@ -362,9 +606,9 @@ var MediaSession = /** @class */ (function () {
      */
     MediaSession.prototype.logAdClick = function (adContent) {
         this.adContent = adContent;
-        var event = new MediaEvent(MediaEventType.AdClick, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.AdClick);
         event.adContent = this.adContent;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs the start of a buffering event
@@ -374,11 +618,11 @@ var MediaSession = /** @class */ (function () {
      * @category Buffering
      */
     MediaSession.prototype.logBufferStart = function (bufferDuration, bufferPercent, bufferPosition) {
-        var event = new MediaEvent(MediaEventType.BufferStart, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.BufferStart);
         event.bufferDuration = bufferDuration;
         event.bufferPercent = bufferPercent;
         event.bufferPosition = bufferPosition;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs the end of a buffering event
@@ -388,27 +632,27 @@ var MediaSession = /** @class */ (function () {
      * @category Buffering
      */
     MediaSession.prototype.logBufferEnd = function (bufferDuration, bufferPercent, bufferPosition) {
-        var event = new MediaEvent(MediaEventType.BufferEnd, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.BufferEnd);
         event.bufferDuration = bufferDuration;
         event.bufferPercent = bufferPercent;
         event.bufferPosition = bufferPosition;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs a play event
      * @category Media
      */
     MediaSession.prototype.logPlay = function () {
-        var event = new MediaEvent(MediaEventType.Play, this.title, this.contentId, this.duration, this.contentType, this.streamType);
-        this.mparticleInstance.logBaseEvent(event);
+        var event = this.createMediaEvent(MediaEventType.Play);
+        this.logEvent(event);
     };
     /**
      * Logs a pause event
      * @category Media
      */
     MediaSession.prototype.logPause = function () {
-        var event = new MediaEvent(MediaEventType.Pause, this.title, this.contentId, this.duration, this.contentType, this.streamType);
-        this.mparticleInstance.logBaseEvent(event);
+        var event = this.createMediaEvent(MediaEventType.Pause);
+        this.logEvent(event);
     };
     /**
      * Logs the start of a Segment or Chapter
@@ -416,9 +660,9 @@ var MediaSession = /** @class */ (function () {
      * @category Media
      */
     MediaSession.prototype.logSegmentStart = function (segment) {
-        var event = new MediaEvent(MediaEventType.SegmentStart, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.SegmentStart);
         event.segment = segment;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
         this.segment = segment;
     };
     /**
@@ -426,9 +670,9 @@ var MediaSession = /** @class */ (function () {
      * @category Media
      */
     MediaSession.prototype.logSegmentEnd = function () {
-        var event = new MediaEvent(MediaEventType.SegmentEnd, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.SegmentEnd);
         event.segment = this.segment;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
         this.segment = undefined;
     };
     /**
@@ -436,9 +680,9 @@ var MediaSession = /** @class */ (function () {
      * @category Media
      */
     MediaSession.prototype.logSegmentSkip = function () {
-        var event = new MediaEvent(MediaEventType.SegmentSkip, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.SegmentSkip);
         event.segment = this.segment;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
         this.segment = undefined;
     };
     /**
@@ -447,9 +691,9 @@ var MediaSession = /** @class */ (function () {
      * @category Media
      */
     MediaSession.prototype.logSeekStart = function (seekPosition) {
-        var event = new MediaEvent(MediaEventType.SeekStart, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.SeekStart);
         event.seekPosition = seekPosition;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs when a visitor stops seeking
@@ -457,9 +701,9 @@ var MediaSession = /** @class */ (function () {
      * @category Media
      */
     MediaSession.prototype.logSeekEnd = function (seekPosition) {
-        var event = new MediaEvent(MediaEventType.SeekEnd, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.SeekEnd);
         event.seekPosition = seekPosition;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs when the playhead position is updated
@@ -468,9 +712,9 @@ var MediaSession = /** @class */ (function () {
      */
     MediaSession.prototype.logPlayheadPosition = function (playheadPosition) {
         this.currentPlayheadPosition = playheadPosition;
-        var event = new MediaEvent(MediaEventType.UpdatePlayheadPosition, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.UpdatePlayheadPosition);
         event.playheadPosition = playheadPosition;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
     /**
      * Logs an update in the Quality of Service
@@ -478,10 +722,68 @@ var MediaSession = /** @class */ (function () {
      * @category Quality of Service
      */
     MediaSession.prototype.logQoS = function (qos) {
-        var event = new MediaEvent(MediaEventType.UpdateQoS, this.title, this.contentId, this.duration, this.contentType, this.streamType);
+        var event = this.createMediaEvent(MediaEventType.UpdateQoS);
         event.qos = qos;
-        this.mparticleInstance.logBaseEvent(event);
+        this.logEvent(event);
     };
+    /**
+     * returns a Custom Page Event
+     * @param eventName The name of your custom event
+     * @param attributes An Attribute Key/Value pair
+     */
+    MediaSession.prototype.createPageEvent = function (eventName, attributes) {
+        return {
+            name: eventName,
+            eventType: EventType.Media,
+            messageType: MessageType.PageEvent,
+            data: __assign({}, this.getAttributes(), attributes),
+        };
+    };
+    Object.defineProperty(MediaSession.prototype, "mediaEventListener", {
+        /**
+         * Subscribes your Media Session to an array of [[MediaEventType]] and fires a
+         * callback when they are triggered
+         *
+         * ```typescript
+         * const mediaSession = new MediaSession(
+         *     mParticle,
+         *     title = "Media Title"
+         *     mediaContentId = "123"
+         *     duration = 1000
+         *     streamType = StreamType.LiveStream
+         *     contentType = ContentType.Video
+         *
+         *     logPageEvents = false              //optional, defaults to false anyway
+         *     logMediaEvents = false
+         * );
+         *
+         * const myCallback = (event: MediaEvent): void => {
+         *     // Some custom callback method defined by user
+         *     // Should only trigger when play or pause is fired
+         *     if (
+         *         event.type == MediaEventType.Play ||
+         *         event.type == MediaEventType.Pause
+         *     ) {
+         *         const mpEvent = mediaEvent.toPageEvent();
+         *         mParticle.getInstance().logEvent(mpEvent);
+         *     }
+         * }
+         *
+         * mediaSession.mediaEventListener(myCallback);
+         *
+         * ```
+         * @param eventTypes An Array of MediaEventTypes that are being subscribed to
+         * @param callback A callback function
+         */
+        get: function () {
+            return this.listenerCallback;
+        },
+        set: function (callback) {
+            this.listenerCallback = callback;
+        },
+        enumerable: true,
+        configurable: true
+    });
     return MediaSession;
 }());
 
@@ -523,6 +825,16 @@ var MediaEventType = {
     SegmentEnd: 44,
     SegmentSkip: 45,
     UpdateQoS: 46
+};
+
+var ContentType = {
+    Audio: 'Audio',
+    Video: 'Video'
+};
+
+var StreamType = {
+    LiveStream: 'LiveStream',
+    OnDemand: 'OnDemand'
 };
 
 function EventHandler(common) {
@@ -588,10 +900,9 @@ EventHandler.prototype.logEvent = function(event) {
             this.common.mediaHeartbeat.trackComplete();
             break;
         case MediaEventType.SessionStart:
-            var contentType = getContentType(event.ContentType);
             var streamType = getStreamType(
                 event.StreamType,
-                contentType,
+                event.ContentType,
                 this.common.MediaHeartbeat.StreamType
             );
 
@@ -600,7 +911,7 @@ EventHandler.prototype.logEvent = function(event) {
                 event.ContentId,
                 event.Duration,
                 streamType,
-                contentType
+                event.ContentType
             );
 
             this.common.mediaHeartbeat.trackSessionStart(adobeMediaObject);
@@ -677,40 +988,13 @@ EventHandler.prototype.logEvent = function(event) {
 
 var getStreamType = function(streamType, contentType, types) {
     switch (streamType) {
-        case 'Podcast':
-        case 'PODCAST':
-            return types.PODCAST;
-        case 'OnDemand':
-        case 'ONDEMAND':
-        case 1:
-            if (contentType === 'Video') {
-                return types.VOD;
-            } else {
-                return types.AOD;
-            }
-        case 'Live':
-        case 'LIVE':
-        case 0:
+        case StreamType.OnDemand:
+            return contentType === ContentType.Video ? types.VOD : types.AOD;
+        case StreamType.LiveStream:
             return types.LIVE;
         default:
             // If it's an unknown type, just pass it through to Adobe
             return streamType;
-    }
-};
-
-var getContentType = function(contentType) {
-    switch (contentType) {
-        case 'Video':
-        case 'video':
-        case 0:
-            return 'Video';
-        case 'Audio':
-        case 'audio':
-        case 1:
-            return 'Audio';
-        default:
-            // If it's an unknown type, just pass it through to Adobe
-            return contentType;
     }
 };
 
@@ -1604,9 +1888,9 @@ map:function map(a,b){var c,d,e;if(null===this)throw new TypeError(" this is nul
 filter:function filter(a/*, thisArg*/){if(void 0===this||null===this)throw new TypeError;var b=Object(this),c=b.length>>>0;if("function"!=typeof a)throw new TypeError;for(var d=[],e=2<=arguments.length?arguments[1]:void 0,f=0;f<c;f++)if(f in b){var g=b[f];a.call(e,g,f,b)&&d.push(g);}return d},// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 isArray:function isArray(a){return "[object Array]"===Object.prototype.toString.call(a)},Base64:Base64};
 
-var MessageType={SessionStart:1,SessionEnd:2,PageView:3,PageEvent:4,CrashReport:5,OptOut:6,AppStateTransition:10,Profile:14,Commerce:16,Media:20},EventType={Unknown:0,Navigation:1,Location:2,Search:3,Transaction:4,UserContent:5,UserPreference:6,Social:7,Other:8,getName:function getName(a){return a===EventType.Navigation?"Navigation":a===EventType.Location?"Location":a===EventType.Search?"Search":a===EventType.Transaction?"Transaction":a===EventType.UserContent?"User Content":a===EventType.UserPreference?"User Preference":a===EventType.Social?"Social":a===CommerceEventType.ProductAddToCart?"Product Added to Cart":a===CommerceEventType.ProductAddToWishlist?"Product Added to Wishlist":a===CommerceEventType.ProductCheckout?"Product Checkout":a===CommerceEventType.ProductCheckoutOption?"Product Checkout Options":a===CommerceEventType.ProductClick?"Product Click":a===CommerceEventType.ProductImpression?"Product Impression":a===CommerceEventType.ProductPurchase?"Product Purchased":a===CommerceEventType.ProductRefund?"Product Refunded":a===CommerceEventType.ProductRemoveFromCart?"Product Removed From Cart":a===CommerceEventType.ProductRemoveFromWishlist?"Product Removed from Wishlist":a===CommerceEventType.ProductViewDetail?"Product View Details":a===CommerceEventType.PromotionClick?"Promotion Click":a===CommerceEventType.PromotionView?"Promotion View":"Other"}},CommerceEventType={ProductAddToCart:10,ProductRemoveFromCart:11,ProductCheckout:12,ProductCheckoutOption:13,ProductClick:14,ProductViewDetail:15,ProductPurchase:16,ProductRefund:17,PromotionView:18,PromotionClick:19,ProductAddToWishlist:20,ProductRemoveFromWishlist:21,ProductImpression:22},IdentityType={Other:0,CustomerId:1,Facebook:2,Twitter:3,Google:4,Microsoft:5,Yahoo:6,Email:7,FacebookCustomAudienceId:9,Other2:10,Other3:11,Other4:12};IdentityType.isValid=function(a){if("number"==typeof a)for(var b in IdentityType)if(IdentityType.hasOwnProperty(b)&&IdentityType[b]===a)return !0;return !1},IdentityType.getName=function(a){return a===window.mParticle.IdentityType.CustomerId?"Customer ID":a===window.mParticle.IdentityType.Facebook?"Facebook ID":a===window.mParticle.IdentityType.Twitter?"Twitter ID":a===window.mParticle.IdentityType.Google?"Google ID":a===window.mParticle.IdentityType.Microsoft?"Microsoft ID":a===window.mParticle.IdentityType.Yahoo?"Yahoo ID":a===window.mParticle.IdentityType.Email?"Email":a===window.mParticle.IdentityType.FacebookCustomAudienceId?"Facebook App User ID":"Other ID"},IdentityType.getIdentityType=function(a){return "other"===a?IdentityType.Other:"customerid"===a?IdentityType.CustomerId:"facebook"===a?IdentityType.Facebook:"twitter"===a?IdentityType.Twitter:"google"===a?IdentityType.Google:"microsoft"===a?IdentityType.Microsoft:"yahoo"===a?IdentityType.Yahoo:"email"===a?IdentityType.Email:"facebookcustomaudienceid"===a?IdentityType.FacebookCustomAudienceId:"other2"===a?IdentityType.Other2:"other3"===a?IdentityType.Other3:!("other4"!=a)&&IdentityType.Other4},IdentityType.getIdentityName=function(a){return a===IdentityType.Other?"other":a===IdentityType.CustomerId?"customerid":a===IdentityType.Facebook?"facebook":a===IdentityType.Twitter?"twitter":a===IdentityType.Google?"google":a===IdentityType.Microsoft?"microsoft":a===IdentityType.Yahoo?"yahoo":a===IdentityType.Email?"email":a===IdentityType.FacebookCustomAudienceId?"facebookcustomaudienceid":a===IdentityType.Other2?"other2":a===IdentityType.Other3?"other3":a===IdentityType.Other4?"other4":void 0};var ProductActionType={Unknown:0,AddToCart:1,RemoveFromCart:2,Checkout:3,CheckoutOption:4,Click:5,ViewDetail:6,Purchase:7,Refund:8,AddToWishlist:9,RemoveFromWishlist:10};ProductActionType.getName=function(a){return a===ProductActionType.AddToCart?"Add to Cart":a===ProductActionType.RemoveFromCart?"Remove from Cart":a===ProductActionType.Checkout?"Checkout":a===ProductActionType.CheckoutOption?"Checkout Option":a===ProductActionType.Click?"Click":a===ProductActionType.ViewDetail?"View Detail":a===ProductActionType.Purchase?"Purchase":a===ProductActionType.Refund?"Refund":a===ProductActionType.AddToWishlist?"Add to Wishlist":a===ProductActionType.RemoveFromWishlist?"Remove from Wishlist":"Unknown"},ProductActionType.getExpansionName=function(a){return a===ProductActionType.AddToCart?"add_to_cart":a===ProductActionType.RemoveFromCart?"remove_from_cart":a===ProductActionType.Checkout?"checkout":a===ProductActionType.CheckoutOption?"checkout_option":a===ProductActionType.Click?"click":a===ProductActionType.ViewDetail?"view_detail":a===ProductActionType.Purchase?"purchase":a===ProductActionType.Refund?"refund":a===ProductActionType.AddToWishlist?"add_to_wishlist":a===ProductActionType.RemoveFromWishlist?"remove_from_wishlist":"unknown"};var PromotionActionType={Unknown:0,PromotionView:1,PromotionClick:2};PromotionActionType.getName=function(a){return a===PromotionActionType.PromotionView?"view":a===PromotionActionType.PromotionClick?"click":"unknown"},PromotionActionType.getExpansionName=function(a){return a===PromotionActionType.PromotionView?"view":a===PromotionActionType.PromotionClick?"click":"unknown"};var ProfileMessageType={Logout:3},ApplicationTransitionType={AppInit:1};var Types = {MessageType:MessageType,EventType:EventType,CommerceEventType:CommerceEventType,IdentityType:IdentityType,ProfileMessageType:ProfileMessageType,ApplicationTransitionType:ApplicationTransitionType,ProductActionType:ProductActionType,PromotionActionType:PromotionActionType};
+var MessageType={SessionStart:1,SessionEnd:2,PageView:3,PageEvent:4,CrashReport:5,OptOut:6,AppStateTransition:10,Profile:14,Commerce:16,Media:20,UserAttributeChange:17,UserIdentityChange:18},EventType={Unknown:0,Navigation:1,Location:2,Search:3,Transaction:4,UserContent:5,UserPreference:6,Social:7,Other:8,Media:9,getName:function getName(a){return a===EventType.Navigation?"Navigation":a===EventType.Location?"Location":a===EventType.Search?"Search":a===EventType.Transaction?"Transaction":a===EventType.UserContent?"User Content":a===EventType.UserPreference?"User Preference":a===EventType.Social?"Social":a===CommerceEventType.ProductAddToCart?"Product Added to Cart":a===CommerceEventType.ProductAddToWishlist?"Product Added to Wishlist":a===CommerceEventType.ProductCheckout?"Product Checkout":a===CommerceEventType.ProductCheckoutOption?"Product Checkout Options":a===CommerceEventType.ProductClick?"Product Click":a===CommerceEventType.ProductImpression?"Product Impression":a===CommerceEventType.ProductPurchase?"Product Purchased":a===CommerceEventType.ProductRefund?"Product Refunded":a===CommerceEventType.ProductRemoveFromCart?"Product Removed From Cart":a===CommerceEventType.ProductRemoveFromWishlist?"Product Removed from Wishlist":a===CommerceEventType.ProductViewDetail?"Product View Details":a===CommerceEventType.PromotionClick?"Promotion Click":a===CommerceEventType.PromotionView?"Promotion View":"Other"}},CommerceEventType={ProductAddToCart:10,ProductRemoveFromCart:11,ProductCheckout:12,ProductCheckoutOption:13,ProductClick:14,ProductViewDetail:15,ProductPurchase:16,ProductRefund:17,PromotionView:18,PromotionClick:19,ProductAddToWishlist:20,ProductRemoveFromWishlist:21,ProductImpression:22},IdentityType={Other:0,CustomerId:1,Facebook:2,Twitter:3,Google:4,Microsoft:5,Yahoo:6,Email:7,FacebookCustomAudienceId:9,Other2:10,Other3:11,Other4:12};IdentityType.isValid=function(a){if("number"==typeof a)for(var b in IdentityType)if(IdentityType.hasOwnProperty(b)&&IdentityType[b]===a)return !0;return !1},IdentityType.getName=function(a){return a===window.mParticle.IdentityType.CustomerId?"Customer ID":a===window.mParticle.IdentityType.Facebook?"Facebook ID":a===window.mParticle.IdentityType.Twitter?"Twitter ID":a===window.mParticle.IdentityType.Google?"Google ID":a===window.mParticle.IdentityType.Microsoft?"Microsoft ID":a===window.mParticle.IdentityType.Yahoo?"Yahoo ID":a===window.mParticle.IdentityType.Email?"Email":a===window.mParticle.IdentityType.FacebookCustomAudienceId?"Facebook App User ID":"Other ID"},IdentityType.getIdentityType=function(a){return "other"===a?IdentityType.Other:"customerid"===a?IdentityType.CustomerId:"facebook"===a?IdentityType.Facebook:"twitter"===a?IdentityType.Twitter:"google"===a?IdentityType.Google:"microsoft"===a?IdentityType.Microsoft:"yahoo"===a?IdentityType.Yahoo:"email"===a?IdentityType.Email:"facebookcustomaudienceid"===a?IdentityType.FacebookCustomAudienceId:"other2"===a?IdentityType.Other2:"other3"===a?IdentityType.Other3:!("other4"!=a)&&IdentityType.Other4},IdentityType.getIdentityName=function(a){return a===IdentityType.Other?"other":a===IdentityType.CustomerId?"customerid":a===IdentityType.Facebook?"facebook":a===IdentityType.Twitter?"twitter":a===IdentityType.Google?"google":a===IdentityType.Microsoft?"microsoft":a===IdentityType.Yahoo?"yahoo":a===IdentityType.Email?"email":a===IdentityType.FacebookCustomAudienceId?"facebookcustomaudienceid":a===IdentityType.Other2?"other2":a===IdentityType.Other3?"other3":a===IdentityType.Other4?"other4":void 0};var ProductActionType={Unknown:0,AddToCart:1,RemoveFromCart:2,Checkout:3,CheckoutOption:4,Click:5,ViewDetail:6,Purchase:7,Refund:8,AddToWishlist:9,RemoveFromWishlist:10};ProductActionType.getName=function(a){return a===ProductActionType.AddToCart?"Add to Cart":a===ProductActionType.RemoveFromCart?"Remove from Cart":a===ProductActionType.Checkout?"Checkout":a===ProductActionType.CheckoutOption?"Checkout Option":a===ProductActionType.Click?"Click":a===ProductActionType.ViewDetail?"View Detail":a===ProductActionType.Purchase?"Purchase":a===ProductActionType.Refund?"Refund":a===ProductActionType.AddToWishlist?"Add to Wishlist":a===ProductActionType.RemoveFromWishlist?"Remove from Wishlist":"Unknown"},ProductActionType.getExpansionName=function(a){return a===ProductActionType.AddToCart?"add_to_cart":a===ProductActionType.RemoveFromCart?"remove_from_cart":a===ProductActionType.Checkout?"checkout":a===ProductActionType.CheckoutOption?"checkout_option":a===ProductActionType.Click?"click":a===ProductActionType.ViewDetail?"view_detail":a===ProductActionType.Purchase?"purchase":a===ProductActionType.Refund?"refund":a===ProductActionType.AddToWishlist?"add_to_wishlist":a===ProductActionType.RemoveFromWishlist?"remove_from_wishlist":"unknown"};var PromotionActionType={Unknown:0,PromotionView:1,PromotionClick:2};PromotionActionType.getName=function(a){return a===PromotionActionType.PromotionView?"view":a===PromotionActionType.PromotionClick?"click":"unknown"},PromotionActionType.getExpansionName=function(a){return a===PromotionActionType.PromotionView?"view":a===PromotionActionType.PromotionClick?"click":"unknown"};var ProfileMessageType={Logout:3},ApplicationTransitionType={AppInit:1};var Types = {MessageType:MessageType,EventType:EventType,CommerceEventType:CommerceEventType,IdentityType:IdentityType,ProfileMessageType:ProfileMessageType,ApplicationTransitionType:ApplicationTransitionType,ProductActionType:ProductActionType,PromotionActionType:PromotionActionType};
 
-var Constants={sdkVersion:"2.9.12",sdkVendor:"mparticle",platform:"web",Messages:{ErrorMessages:{NoToken:"A token must be specified.",EventNameInvalidType:"Event name must be a valid string value.",EventDataInvalidType:"Event data must be a valid object hash.",LoggingDisabled:"Event logging is currently disabled.",CookieParseError:"Could not parse cookie",EventEmpty:"Event object is null or undefined, cancelling send",APIRequestEmpty:"APIRequest is null or undefined, cancelling send",NoEventType:"Event type must be specified.",TransactionIdRequired:"Transaction ID is required",TransactionRequired:"A transaction attributes object is required",PromotionIdRequired:"Promotion ID is required",BadAttribute:"Attribute value cannot be object or array",BadKey:"Key value cannot be object or array",BadLogPurchase:"Transaction attributes and a product are both required to log a purchase, https://docs.mparticle.com/?javascript#measuring-transactions"},InformationMessages:{CookieSearch:"Searching for cookie",CookieFound:"Cookie found, parsing values",CookieNotFound:"Cookies not found",CookieSet:"Setting cookie",CookieSync:"Performing cookie sync",SendBegin:"Starting to send event",SendIdentityBegin:"Starting to send event to identity server",SendWindowsPhone:"Sending event to Windows Phone container",SendIOS:"Calling iOS path: ",SendAndroid:"Calling Android JS interface method: ",SendHttp:"Sending event to mParticle HTTP service",SendAliasHttp:"Sending alias request to mParticle HTTP service",SendIdentityHttp:"Sending event to mParticle HTTP service",StartingNewSession:"Starting new Session",StartingLogEvent:"Starting to log event",StartingLogOptOut:"Starting to log user opt in/out",StartingEndSession:"Starting to end session",StartingInitialization:"Starting to initialize",StartingLogCommerceEvent:"Starting to log commerce event",StartingAliasRequest:"Starting to Alias MPIDs",LoadingConfig:"Loading configuration options",AbandonLogEvent:"Cannot log event, logging disabled or developer token not set",AbandonAliasUsers:"Cannot Alias Users, logging disabled or developer token not set",AbandonStartSession:"Cannot start session, logging disabled or developer token not set",AbandonEndSession:"Cannot end session, logging disabled or developer token not set",NoSessionToEnd:"Cannot end session, no active session found"},ValidationMessages:{ModifyIdentityRequestUserIdentitiesPresent:"identityRequests to modify require userIdentities to be present. Request not sent to server. Please fix and try again",IdentityRequesetInvalidKey:"There is an invalid key on your identityRequest object. It can only contain a `userIdentities` object and a `onUserAlias` function. Request not sent to server. Please fix and try again.",OnUserAliasType:"The onUserAlias value must be a function. The onUserAlias provided is of type",UserIdentities:"The userIdentities key must be an object with keys of identityTypes and values of strings. Request not sent to server. Please fix and try again.",UserIdentitiesInvalidKey:"There is an invalid identity key on your `userIdentities` object within the identityRequest. Request not sent to server. Please fix and try again.",UserIdentitiesInvalidValues:"All user identity values must be strings or null. Request not sent to server. Please fix and try again.",AliasMissingMpid:"Alias Request must contain both a destinationMpid and a sourceMpid",AliasNonUniqueMpid:"Alias Request's destinationMpid and sourceMpid must be unique",AliasMissingTime:"Alias Request must have both a startTime and an endTime",AliasStartBeforeEndTime:"Alias Request's endTime must be later than its startTime"}},NativeSdkPaths:{LogEvent:"logEvent",SetUserTag:"setUserTag",RemoveUserTag:"removeUserTag",SetUserAttribute:"setUserAttribute",RemoveUserAttribute:"removeUserAttribute",SetSessionAttribute:"setSessionAttribute",AddToCart:"addToCart",RemoveFromCart:"removeFromCart",ClearCart:"clearCart",LogOut:"logOut",SetUserAttributeList:"setUserAttributeList",RemoveAllUserAttributes:"removeAllUserAttributes",GetUserAttributesLists:"getUserAttributesLists",GetAllUserAttributes:"getAllUserAttributes",Identify:"identify",Logout:"logout",Login:"login",Modify:"modify",Alias:"aliasUsers"},StorageNames:{localStorageName:"mprtcl-api",// Name of the mP localstorage, had cp and pb even if cookies were used, skipped v2
+var Constants={sdkVersion:"2.9.14",sdkVendor:"mparticle",platform:"web",Messages:{ErrorMessages:{NoToken:"A token must be specified.",EventNameInvalidType:"Event name must be a valid string value.",EventDataInvalidType:"Event data must be a valid object hash.",LoggingDisabled:"Event logging is currently disabled.",CookieParseError:"Could not parse cookie",EventEmpty:"Event object is null or undefined, cancelling send",APIRequestEmpty:"APIRequest is null or undefined, cancelling send",NoEventType:"Event type must be specified.",TransactionIdRequired:"Transaction ID is required",TransactionRequired:"A transaction attributes object is required",PromotionIdRequired:"Promotion ID is required",BadAttribute:"Attribute value cannot be object or array",BadKey:"Key value cannot be object or array",BadLogPurchase:"Transaction attributes and a product are both required to log a purchase, https://docs.mparticle.com/?javascript#measuring-transactions"},InformationMessages:{CookieSearch:"Searching for cookie",CookieFound:"Cookie found, parsing values",CookieNotFound:"Cookies not found",CookieSet:"Setting cookie",CookieSync:"Performing cookie sync",SendBegin:"Starting to send event",SendIdentityBegin:"Starting to send event to identity server",SendWindowsPhone:"Sending event to Windows Phone container",SendIOS:"Calling iOS path: ",SendAndroid:"Calling Android JS interface method: ",SendHttp:"Sending event to mParticle HTTP service",SendAliasHttp:"Sending alias request to mParticle HTTP service",SendIdentityHttp:"Sending event to mParticle HTTP service",StartingNewSession:"Starting new Session",StartingLogEvent:"Starting to log event",StartingLogOptOut:"Starting to log user opt in/out",StartingEndSession:"Starting to end session",StartingInitialization:"Starting to initialize",StartingLogCommerceEvent:"Starting to log commerce event",StartingAliasRequest:"Starting to Alias MPIDs",LoadingConfig:"Loading configuration options",AbandonLogEvent:"Cannot log event, logging disabled or developer token not set",AbandonAliasUsers:"Cannot Alias Users, logging disabled or developer token not set",AbandonStartSession:"Cannot start session, logging disabled or developer token not set",AbandonEndSession:"Cannot end session, logging disabled or developer token not set",NoSessionToEnd:"Cannot end session, no active session found"},ValidationMessages:{ModifyIdentityRequestUserIdentitiesPresent:"identityRequests to modify require userIdentities to be present. Request not sent to server. Please fix and try again",IdentityRequesetInvalidKey:"There is an invalid key on your identityRequest object. It can only contain a `userIdentities` object and a `onUserAlias` function. Request not sent to server. Please fix and try again.",OnUserAliasType:"The onUserAlias value must be a function. The onUserAlias provided is of type",UserIdentities:"The userIdentities key must be an object with keys of identityTypes and values of strings. Request not sent to server. Please fix and try again.",UserIdentitiesInvalidKey:"There is an invalid identity key on your `userIdentities` object within the identityRequest. Request not sent to server. Please fix and try again.",UserIdentitiesInvalidValues:"All user identity values must be strings or null. Request not sent to server. Please fix and try again.",AliasMissingMpid:"Alias Request must contain both a destinationMpid and a sourceMpid",AliasNonUniqueMpid:"Alias Request's destinationMpid and sourceMpid must be unique",AliasMissingTime:"Alias Request must have both a startTime and an endTime",AliasStartBeforeEndTime:"Alias Request's endTime must be later than its startTime"}},NativeSdkPaths:{LogEvent:"logEvent",SetUserTag:"setUserTag",RemoveUserTag:"removeUserTag",SetUserAttribute:"setUserAttribute",RemoveUserAttribute:"removeUserAttribute",SetSessionAttribute:"setSessionAttribute",AddToCart:"addToCart",RemoveFromCart:"removeFromCart",ClearCart:"clearCart",LogOut:"logOut",SetUserAttributeList:"setUserAttributeList",RemoveAllUserAttributes:"removeAllUserAttributes",GetUserAttributesLists:"getUserAttributesLists",GetAllUserAttributes:"getAllUserAttributes",Identify:"identify",Logout:"logout",Login:"login",Modify:"modify",Alias:"aliasUsers"},StorageNames:{localStorageName:"mprtcl-api",// Name of the mP localstorage, had cp and pb even if cookies were used, skipped v2
 localStorageNameV3:"mprtcl-v3",// v3 Name of the mP localstorage, final version on SDKv1
 cookieName:"mprtcl-api",// v1 Name of the cookie stored on the user's machine
 cookieNameV2:"mprtcl-v2",// v2 Name of the cookie stored on the user's machine. Removed keys with no values, moved cartProducts and productBags to localStorage.
@@ -1644,8 +1928,8 @@ return g}function isObject(a){var b=Object.prototype.toString.call(a);return "[o
 return b// if the placeholder was passed, return
 ?generateRandomValue(b)// a random number
 :// or otherwise a concatenated string:
-"10000000-1000-4000-8000-100000000000"// -100000000000,
-.replace(// replacing
+"10000000-1000-4000-8000-100000000000".// -100000000000,
+replace(// replacing
 /[018]/g,// zeroes, ones, and eights with
 generateUniqueId// random hex digits
 )}function filterUserIdentities(a,b){var c=[];if(a&&Object.keys(a).length)for(var d in a)if(a.hasOwnProperty(d)){var e=Types.IdentityType.getIdentityType(d);if(!inArray(b,e)){var f={Type:e,Identity:a[d]};e===mParticle.IdentityType.CustomerId?c.unshift(f):c.push(f);}}return c}function filterUserIdentitiesForForwarders(a,b){var c={};if(a&&Object.keys(a).length)for(var d in a)if(a.hasOwnProperty(d)){var e=Types.IdentityType.getIdentityType(d);inArray(b,e)||(c[d]=a[d]);}return c}function filterUserAttributes(a,b){var c={};if(a&&Object.keys(a).length)for(var d in a)if(a.hasOwnProperty(d)){var e=generateHash(d);inArray(b,e)||(c[d]=a[d]);}return c}function findKeyInObject(a,b){if(b&&a)for(var c in a)if(a.hasOwnProperty(c)&&c.toLowerCase()===b.toLowerCase())return c;return null}function decoded(a){return decodeURIComponent(a.replace(pluses," "))}function converted(a){return 0===a.indexOf("\"")&&(a=a.slice(1,-1).replace(/\\"/g,"\"").replace(/\\\\/g,"\\")),a}function isEventType(a){for(var b in Types.EventType)if(Types.EventType.hasOwnProperty(b)&&Types.EventType[b]===a)return !0;return !1}function parseNumber(a){if(isNaN(a)||!isFinite(a))return 0;var b=parseFloat(a);return isNaN(b)?0:b}function parseStringOrNumber(a){return Validators.isStringOrNumber(a)?a:null}function generateHash(a){var b,c=0,d=0;if(void 0===a||null===a)return 0;if(a=a.toString().toLowerCase(),Array.prototype.reduce)return a.split("").reduce(function(c,d){return c=(c<<5)-c+d.charCodeAt(0),c&c},0);if(0===a.length)return c;for(d=0;d<a.length;d++)b=a.charCodeAt(d),c=(c<<5)-c+b,c&=c;return c}function sanitizeAttributes(a){if(!a||!isObject(a))return null;var b={};for(var c in a)// Make sure that attribute values are not objects or arrays, which are not valid
@@ -1658,7 +1942,7 @@ var Messages=Constants.Messages,androidBridgeNameBase="mParticleAndroid",iosBrid
 return !!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.hasOwnProperty(b))||!(window.mParticle.uiwebviewBridgeName!==b)||!!window.hasOwnProperty(androidBridgeNameBase+"_"+a+"_v2");// other iOS v2 bridge
 // android
 }function isWebviewEnabled(a,b){return mParticle.Store.bridgeV2Available=isBridgeV2Available(a),mParticle.Store.bridgeV1Available=isBridgeV1Available(),2===b?mParticle.Store.bridgeV2Available:!(window.mParticle.uiwebviewBridgeName&&window.mParticle.uiwebviewBridgeName!==iosBridgeNameBase+"_"+a+"_v2")&&!!(2>b)&&(mParticle.Store.bridgeV2Available||mParticle.Store.bridgeV1Available);// iOS BridgeV1 can be available via mParticle.isIOS, but return false if uiwebviewBridgeName doesn't match requiredWebviewBridgeName
-}function isBridgeV1Available(){return !!(mParticle.Store.SDKConfig.useNativeSdk||window.mParticleAndroid||mParticle.Store.SDKConfig.isIOS)}function sendToNative(a,b){return mParticle.Store.bridgeV2Available&&2===mParticle.Store.SDKConfig.minWebviewBridgeVersion?void sendViaBridgeV2(a,b,mParticle.Store.SDKConfig.requiredWebviewBridgeName):mParticle.Store.bridgeV2Available&&2>mParticle.Store.SDKConfig.minWebviewBridgeVersion?void sendViaBridgeV2(a,b,mParticle.Store.SDKConfig.requiredWebviewBridgeName):mParticle.Store.bridgeV1Available&&2>mParticle.Store.SDKConfig.minWebviewBridgeVersion?void sendViaBridgeV1(a,b):void 0}function sendViaBridgeV1(a,b){window.mParticleAndroid&&window.mParticleAndroid.hasOwnProperty(a)?(mParticle.Logger.verbose(Messages.InformationMessages.SendAndroid+a),window.mParticleAndroid[a](b)):mParticle.Store.SDKConfig.isIOS&&(mParticle.Logger.verbose(Messages.InformationMessages.SendIOS+a),sendViaIframeToIOS(a,b));}function sendViaIframeToIOS(a,b){var c=document.createElement("IFRAME");c.setAttribute("src","mp-sdk://"+a+"/"+encodeURIComponent(b)),document.documentElement.appendChild(c),c.parentNode.removeChild(c),c=null;}function sendViaBridgeV2(a,b,c){if(c){var d,e,f=window[androidBridgeNameBase+"_"+c+"_v2"],g=iosBridgeNameBase+"_"+c+"_v2";return window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers[g]&&(d=window.webkit.messageHandlers[g]),window.mParticle.uiwebviewBridgeName===g&&(e=window.mParticle[g]),f&&f.hasOwnProperty(a)?(mParticle.Logger.verbose(Messages.InformationMessages.SendAndroid+a),void f[a](b)):void(d?(mParticle.Logger.verbose(Messages.InformationMessages.SendIOS+a),d.postMessage(JSON.stringify({path:a,value:b?JSON.parse(b):null}))):e&&(mParticle.Logger.verbose(Messages.InformationMessages.SendIOS+a),sendViaIframeToIOS(a,b)))}}var NativeSdkHelpers = {isWebviewEnabled:isWebviewEnabled,isBridgeV2Available:isBridgeV2Available,sendToNative:sendToNative};
+}function isBridgeV1Available(){return !!(mParticle.Store.SDKConfig.useNativeSdk||window.mParticleAndroid||mParticle.Store.SDKConfig.isIOS)}function sendToNative(a,b){return mParticle.Store.bridgeV2Available&&2===mParticle.Store.SDKConfig.minWebviewBridgeVersion?void sendViaBridgeV2(a,b,mParticle.Store.SDKConfig.requiredWebviewBridgeName):mParticle.Store.bridgeV2Available&&2>mParticle.Store.SDKConfig.minWebviewBridgeVersion?void sendViaBridgeV2(a,b,mParticle.Store.SDKConfig.requiredWebviewBridgeName):mParticle.Store.bridgeV1Available&&2>mParticle.Store.SDKConfig.minWebviewBridgeVersion?void sendViaBridgeV1(a,b):void 0}function sendViaBridgeV1(a,b){window.mParticleAndroid&&window.mParticleAndroid.hasOwnProperty(a)?(mParticle.Logger.verbose(Messages.InformationMessages.SendAndroid+a),window.mParticleAndroid[a](b)):mParticle.Store.SDKConfig.isIOS&&(mParticle.Logger.verbose(Messages.InformationMessages.SendIOS+a),sendViaIframeToIOS(a,b));}function sendViaIframeToIOS(a,b){var c=document.createElement("IFRAME");c.setAttribute("src","mp-sdk://"+a+"/"+encodeURIComponent(b)),document.documentElement.appendChild(c),c.parentNode.removeChild(c);}function sendViaBridgeV2(a,b,c){if(c){var d,e,f=window[androidBridgeNameBase+"_"+c+"_v2"],g=iosBridgeNameBase+"_"+c+"_v2";return window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers[g]&&(d=window.webkit.messageHandlers[g]),window.mParticle.uiwebviewBridgeName===g&&(e=window.mParticle[g]),f&&f.hasOwnProperty(a)?(mParticle.Logger.verbose(Messages.InformationMessages.SendAndroid+a),void f[a](b)):void(d?(mParticle.Logger.verbose(Messages.InformationMessages.SendIOS+a),d.postMessage(JSON.stringify({path:a,value:b?JSON.parse(b):null}))):e&&(mParticle.Logger.verbose(Messages.InformationMessages.SendIOS+a),sendViaIframeToIOS(a,b)))}}var NativeSdkHelpers = {isWebviewEnabled:isWebviewEnabled,isBridgeV2Available:isBridgeV2Available,sendToNative:sendToNative};
 
 function createGDPRConsent(a,b,c,d,e){return "boolean"==typeof a?b&&isNaN(b)?(mParticle.Logger.error("Timestamp must be a valid number when constructing a GDPR Consent object."),null):c&&"string"!=typeof c?(mParticle.Logger.error("Document must be a valid string when constructing a GDPR Consent object."),null):d&&"string"!=typeof d?(mParticle.Logger.error("Location must be a valid string when constructing a GDPR Consent object."),null):e&&"string"!=typeof e?(mParticle.Logger.error("Hardware ID must be a valid string when constructing a GDPR Consent object."),null):{Consented:a,Timestamp:b||Date.now(),ConsentDocument:c,Location:d,HardwareId:e}:(mParticle.Logger.error("Consented boolean is required when constructing a GDPR Consent object."),null)}var ConsentSerialization={toMinifiedJsonObject:function toMinifiedJsonObject(a){var b={};if(a){var c=a.getGDPRConsentState();if(c)for(var d in b.gdpr={},c)if(c.hasOwnProperty(d)){var e=c[d];b.gdpr[d]={},"boolean"==typeof e.Consented&&(b.gdpr[d].c=e.Consented),"number"==typeof e.Timestamp&&(b.gdpr[d].ts=e.Timestamp),"string"==typeof e.ConsentDocument&&(b.gdpr[d].d=e.ConsentDocument),"string"==typeof e.Location&&(b.gdpr[d].l=e.Location),"string"==typeof e.HardwareId&&(b.gdpr[d].h=e.HardwareId);}}return b},fromMinifiedJsonObject:function fromMinifiedJsonObject(a){var b=createConsentState();if(a.gdpr)for(var c in a.gdpr)if(a.gdpr.hasOwnProperty(c)){var d=createGDPRConsent(a.gdpr[c].c,a.gdpr[c].ts,a.gdpr[c].d,a.gdpr[c].l,a.gdpr[c].h);b.addGDPRConsentState(c,d);}return b}};function createConsentState(a){function b(a){if("string"!=typeof a)return null;var b=a.trim();return b.length?b.toLowerCase():null}function c(a){if(!a)g={};else if(Helpers.isObject(a))for(var b in g={},a)a.hasOwnProperty(b)&&d(b,a[b]);return this}function d(a,c){var d=b(a);if(!d)return mParticle.Logger.error("addGDPRConsentState() invoked with bad purpose. Purpose must be a string."),this;if(!Helpers.isObject(c))return mParticle.Logger.error("addGDPRConsentState() invoked with bad or empty GDPR consent object."),this;var e=createGDPRConsent(c.Consented,c.Timestamp,c.ConsentDocument,c.Location,c.HardwareId);return e&&(g[d]=e),this}function e(a){var c=b(a);return c?(delete g[c],this):this}function f(){return Helpers.extend({},g)}var g={};return a&&c(a.getGDPRConsentState()),{setGDPRConsentState:c,addGDPRConsentState:d,getGDPRConsentState:f,removeGDPRConsentState:e}}var Consent = {createGDPRConsent:createGDPRConsent,Serialization:ConsentSerialization,createConsentState:createConsentState};
 
@@ -1682,27 +1966,27 @@ var h={};for(var j in a)a.hasOwnProperty(j)&&(SDKv2NonMPIDCookieKeys[j]||j===a.c
 if(Object.keys(h).length)for(var k in h)e=createFullEncodedCookie(a,b,c),e.length>d&&h.hasOwnProperty(k)&&-1===f.indexOf(k)&&delete a[k];// Comment 2b above
 for(var l,m=0;m<f.length&&(e=createFullEncodedCookie(a,b,c),e.length>d);m++)l=f[m],a[l]?(mParticle.Logger.verbose("Size of new encoded cookie is larger than maxCookieSize setting of "+d+". Removing from cookie the earliest logged in MPID containing: "+JSON.stringify(a[l],0,2)),delete a[l]):mParticle.Logger.error("Unable to save MPID data to cookies because the resulting encoded cookie is larger than the maxCookieSize setting of "+d+". We recommend using a maxCookieSize of 1500.");}return e}function createFullEncodedCookie(a,b,c){return encodeCookies(JSON.stringify(a))+";expires="+b+";path=/"+c}function findPrevCookiesBasedOnUI(a){var b,c=getCookie()||getLocalStorage();if(a)for(var d in a.userIdentities)if(c&&Object.keys(c).length)for(var e in c)// any value in cookies that has an MPID key will be an MPID to search through
 // other keys on the cookie are currentSessionMPIDs and currentMPID which should not be searched
-if(c[e].mpid){var f=c[e].ui;for(var g in f)if(d===g&&a.userIdentities[d]===f[g]){b=e;break}}b&&storeDataInMemory(c,b);}function encodeCookies(a){for(var b in a=JSON.parse(a),a.gs)a.gs.hasOwnProperty(b)&&(Base64CookieKeys[b]?a.gs[b]?Array.isArray(a.gs[b])&&a.gs[b].length?a.gs[b]=Base64$1.encode(JSON.stringify(a.gs[b])):Helpers.isObject(a.gs[b])&&Object.keys(a.gs[b]).length?a.gs[b]=Base64$1.encode(JSON.stringify(a.gs[b])):delete a.gs[b]:delete a.gs[b]:"ie"===b?a.gs[b]=a.gs[b]?1:0:!a.gs[b]&&delete a.gs[b]);for(var c in a)if(a.hasOwnProperty(c)&&!SDKv2NonMPIDCookieKeys[c])for(b in a[c])a[c].hasOwnProperty(b)&&Base64CookieKeys[b]&&(Helpers.isObject(a[c][b])&&Object.keys(a[c][b]).length?a[c][b]=Base64$1.encode(JSON.stringify(a[c][b])):delete a[c][b]);return createCookieString(JSON.stringify(a))}function decodeCookies(a){try{if(a){if(a=JSON.parse(revertCookieString(a)),Helpers.isObject(a)&&Object.keys(a).length){for(var b in a.gs)a.gs.hasOwnProperty(b)&&(Base64CookieKeys[b]?a.gs[b]=JSON.parse(Base64$1.decode(a.gs[b])):"ie"===b&&(a.gs[b]=!!a.gs[b]));for(var c in a)if(a.hasOwnProperty(c))if(!SDKv2NonMPIDCookieKeys[c])for(b in a[c])a[c].hasOwnProperty(b)&&Base64CookieKeys[b]&&a[c][b].length&&(a[c][b]=JSON.parse(Base64$1.decode(a[c][b])));else"l"===c&&(a[c]=!!a[c]);}return JSON.stringify(a)}}catch(a){mParticle.Logger.error("Problem with decoding cookie",a);}}function replaceCommasWithPipes(a){return a.replace(/,/g,"|")}function replacePipesWithCommas(a){return a.replace(/\|/g,",")}function replaceApostrophesWithQuotes(a){return a.replace(/\'/g,"\"")}function replaceQuotesWithApostrophes(a){return a.replace(/\"/g,"'")}function createCookieString(a){return replaceCommasWithPipes(replaceQuotesWithApostrophes(a))}function revertCookieString(a){return replacePipesWithCommas(replaceApostrophesWithQuotes(a))}function getCookieDomain(){if(mParticle.Store.SDKConfig.cookieDomain)return mParticle.Store.SDKConfig.cookieDomain;var a=getDomain(document,location.hostname);return ""===a?"":"."+a}// This function loops through the parts of a full hostname, attempting to set a cookie on that domain. It will set a cookie at the highest level possible.
+if(c[e].mpid){var f=c[e].ui;for(var g in f)if(d===g&&a.userIdentities[d]===f[g]){b=e;break}}b&&storeDataInMemory(c,b);}function encodeCookies(a){for(var b in a=JSON.parse(a),a.gs)a.gs.hasOwnProperty(b)&&(Base64CookieKeys[b]?a.gs[b]?Array.isArray(a.gs[b])&&a.gs[b].length||Helpers.isObject(a.gs[b])&&Object.keys(a.gs[b]).length?a.gs[b]=Base64$1.encode(JSON.stringify(a.gs[b])):delete a.gs[b]:delete a.gs[b]:"ie"===b?a.gs[b]=a.gs[b]?1:0:!a.gs[b]&&delete a.gs[b]);for(var c in a)if(a.hasOwnProperty(c)&&!SDKv2NonMPIDCookieKeys[c])for(b in a[c])a[c].hasOwnProperty(b)&&Base64CookieKeys[b]&&(Helpers.isObject(a[c][b])&&Object.keys(a[c][b]).length?a[c][b]=Base64$1.encode(JSON.stringify(a[c][b])):delete a[c][b]);return createCookieString(JSON.stringify(a))}function decodeCookies(a){try{if(a){if(a=JSON.parse(revertCookieString(a)),Helpers.isObject(a)&&Object.keys(a).length){for(var b in a.gs)a.gs.hasOwnProperty(b)&&(Base64CookieKeys[b]?a.gs[b]=JSON.parse(Base64$1.decode(a.gs[b])):"ie"===b&&(a.gs[b]=!!a.gs[b]));for(var c in a)if(a.hasOwnProperty(c))if(!SDKv2NonMPIDCookieKeys[c])for(b in a[c])a[c].hasOwnProperty(b)&&Base64CookieKeys[b]&&a[c][b].length&&(a[c][b]=JSON.parse(Base64$1.decode(a[c][b])));else"l"===c&&(a[c]=!!a[c]);}return JSON.stringify(a)}}catch(a){mParticle.Logger.error("Problem with decoding cookie",a);}}function replaceCommasWithPipes(a){return a.replace(/,/g,"|")}function replacePipesWithCommas(a){return a.replace(/\|/g,",")}function replaceApostrophesWithQuotes(a){return a.replace(/\'/g,"\"")}function replaceQuotesWithApostrophes(a){return a.replace(/\"/g,"'")}function createCookieString(a){return replaceCommasWithPipes(replaceQuotesWithApostrophes(a))}function revertCookieString(a){return replacePipesWithCommas(replaceApostrophesWithQuotes(a))}function getCookieDomain(){if(mParticle.Store.SDKConfig.cookieDomain)return mParticle.Store.SDKConfig.cookieDomain;var a=getDomain(document,location.hostname);return ""===a?"":"."+a}// This function loops through the parts of a full hostname, attempting to set a cookie on that domain. It will set a cookie at the highest level possible.
 // For example subdomain.domain.co.uk would try the following combinations:
 // "co.uk" -> fail
 // "domain.co.uk" -> success, return
 // "subdomain.domain.co.uk" -> skipped, because already found
-function getDomain(a,b){var c,d,e=b.split(".");for(c=e.length-1;0<=c;c--)if(d=e.slice(c).join("."),a.cookie="mptest=cookie;domain=."+d+";",-1<a.cookie.indexOf("mptest=cookie"))return a.cookie="mptest=;domain=."+d+";expires=Thu, 01 Jan 1970 00:00:01 GMT;",d;return ""}function getUserIdentities(a){var b=getPersistence();return b&&b[a]&&b[a].ui?b[a].ui:{}}function getAllUserAttributes(a){var b=getPersistence();return b&&b[a]&&b[a].ua?b[a].ua:{}}function getCartProducts(a){var b,c=localStorage.getItem(mParticle.Store.prodStorageName);return c&&(b=JSON.parse(Base64$1.decode(c)),b&&b[a]&&b[a].cp)?b[a].cp:[]}function setCartProducts(a){if(mParticle.Store.isLocalStorageAvailable)try{window.localStorage.setItem(encodeURIComponent(mParticle.Store.prodStorageName),Base64$1.encode(JSON.stringify(a)));}catch(a){mParticle.Logger.error("Error with setting products on localStorage.");}}function saveUserIdentitiesToCookies(a,b){if(b){var c=getPersistence();c&&(c[a]?c[a].ui=b:c[a]={ui:b},saveCookies(c));}}function saveUserAttributesToCookies(a,b){var c=getPersistence();b&&(c&&(c[a]?c[a].ui=b:c[a]={ui:b}),saveCookies(c));}function saveUserCookieSyncDatesToCookies(a,b){if(b){var c=getPersistence();c&&(c[a]?c[a].csd=b:c[a]={csd:b}),saveCookies(c);}}function saveUserConsentStateToCookies(a,b){//it's currently not supported to set persistence	
-//for any MPID that's not the current one.	
+function getDomain(a,b){var c,d,e=b.split(".");for(c=e.length-1;0<=c;c--)if(d=e.slice(c).join("."),a.cookie="mptest=cookie;domain=."+d+";",-1<a.cookie.indexOf("mptest=cookie"))return a.cookie="mptest=;domain=."+d+";expires=Thu, 01 Jan 1970 00:00:01 GMT;",d;return ""}function getUserIdentities(a){var b=getPersistence();return b&&b[a]&&b[a].ui?b[a].ui:{}}function getAllUserAttributes(a){var b=getPersistence();return b&&b[a]&&b[a].ua?b[a].ua:{}}function getCartProducts(a){var b,c=localStorage.getItem(mParticle.Store.prodStorageName);return c&&(b=JSON.parse(Base64$1.decode(c)),b&&b[a]&&b[a].cp)?b[a].cp:[]}function setCartProducts(a){if(mParticle.Store.isLocalStorageAvailable)try{window.localStorage.setItem(encodeURIComponent(mParticle.Store.prodStorageName),Base64$1.encode(JSON.stringify(a)));}catch(a){mParticle.Logger.error("Error with setting products on localStorage.");}}function saveUserIdentitiesToCookies(a,b){if(b){var c=getPersistence();c&&(c[a]?c[a].ui=b:c[a]={ui:b},saveCookies(c));}}function saveUserAttributesToCookies(a,b){var c=getPersistence();b&&(c&&(c[a]?c[a].ui=b:c[a]={ui:b}),saveCookies(c));}function saveUserCookieSyncDatesToCookies(a,b){if(b){var c=getPersistence();c&&(c[a]?c[a].csd=b:c[a]={csd:b}),saveCookies(c);}}function saveUserConsentStateToCookies(a,b){//it's currently not supported to set persistence
+//for any MPID that's not the current one.
 if(b||null===b){var c=getPersistence();c&&(c[a]?c[a].con=Consent.Serialization.toMinifiedJsonObject(b):c[a]={con:Consent.Serialization.toMinifiedJsonObject(b)},saveCookies(c));}}function saveCookies(a){var b,c=encodeCookies(JSON.stringify(a)),d=new Date,e=mParticle.Store.storageName,f=new Date(d.getTime()+1e3*(60*(60*(24*mParticle.Store.SDKConfig.cookieExpiration)))).toGMTString(),g=getCookieDomain();if(b=""===g?"":";domain="+g,mParticle.Store.SDKConfig.useCookieStorage){var h=reduceAndEncodeCookies(a,f,b,mParticle.Store.SDKConfig.maxCookieSize);window.document.cookie=encodeURIComponent(e)+"="+h;}else mParticle.Store.isLocalStorageAvailable&&localStorage.setItem(mParticle.Store.storageName,c);}function getPersistence(){var a;return a=mParticle.Store.SDKConfig.useCookieStorage?getCookie():getLocalStorage(),a}function getConsentState(a){var b=getPersistence();return b&&b[a]&&b[a].con?Consent.Serialization.fromMinifiedJsonObject(b[a].con):null}function getFirstSeenTime(a){if(!a)return null;var b=getPersistence();return b&&b[a]&&b[a].fst?b[a].fst:null}/**
-* set the "first seen" time for a user. the time will only be set once for a given
-* mpid after which subsequent calls will be ignored
-*/function setFirstSeenTime(a,b){if(a){b||(b=new Date().getTime());var c=getPersistence();c&&(!c[a]&&(c[a]={}),!c[a].fst&&(c[a].fst=b,saveCookies(c)));}}/**
-* returns the "last seen" time for a user. If the mpid represents the current user, the 
-* return value will always be the current time, otherwise it will be to stored "last seen" 
-* time
-*/function getLastSeenTime(a){if(!a)return null;if(a===mParticle.Identity.getCurrentUser().getMPID())//if the mpid is the current user, its last seen time is the current time
+ * set the "first seen" time for a user. the time will only be set once for a given
+ * mpid after which subsequent calls will be ignored
+ */function setFirstSeenTime(a,b){if(a){b||(b=new Date().getTime());var c=getPersistence();c&&(!c[a]&&(c[a]={}),!c[a].fst&&(c[a].fst=b,saveCookies(c)));}}/**
+ * returns the "last seen" time for a user. If the mpid represents the current user, the
+ * return value will always be the current time, otherwise it will be to stored "last seen"
+ * time
+ */function getLastSeenTime(a){if(!a)return null;if(a===mParticle.Identity.getCurrentUser().getMPID())//if the mpid is the current user, its last seen time is the current time
 return new Date().getTime();var b=getPersistence();return b&&b[a]&&b[a].lst?b[a].lst:null}function setLastSeenTime(a,b){if(a){b||(b=new Date().getTime());var c=getPersistence();c&&c[a]&&(c[a].lst=b,saveCookies(c));}}function getDeviceId(){return mParticle.Store.deviceId}function resetPersistence(){if(removeLocalStorage(StorageNames$1.localStorageName),removeLocalStorage(StorageNames$1.localStorageNameV3),removeLocalStorage(StorageNames$1.localStorageNameV4),removeLocalStorage(mParticle.Store.prodStorageName),removeLocalStorage(StorageNames$1.localStorageProductsV4),expireCookies(StorageNames$1.cookieName),expireCookies(StorageNames$1.cookieNameV2),expireCookies(StorageNames$1.cookieNameV3),expireCookies(StorageNames$1.cookieNameV4),mParticle._isTestEnv){removeLocalStorage(Helpers.createMainStorageName("abcdef")),expireCookies(Helpers.createMainStorageName("abcdef")),removeLocalStorage(Helpers.createProductStorageName("abcdef"));}}// Forwarder Batching Code
 var forwardingStatsBatches={uploadsTable:{},forwardingStatsEventQueue:[]};var Persistence = {useLocalStorage:useLocalStorage,initializeStorage:initializeStorage,update:update,determineLocalStorageAvailability:determineLocalStorageAvailability,getUserProductsFromLS:getUserProductsFromLS,getAllUserProductsFromLS:getAllUserProductsFromLS,setLocalStorage:setLocalStorage,getLocalStorage:getLocalStorage,storeDataInMemory:storeDataInMemory,retrieveDeviceId:retrieveDeviceId,parseDeviceId:parseDeviceId,expireCookies:expireCookies,getCookie:getCookie,setCookie:setCookie,reduceAndEncodeCookies:reduceAndEncodeCookies,findPrevCookiesBasedOnUI:findPrevCookiesBasedOnUI,replaceCommasWithPipes:replaceCommasWithPipes,replacePipesWithCommas:replacePipesWithCommas,replaceApostrophesWithQuotes:replaceApostrophesWithQuotes,replaceQuotesWithApostrophes:replaceQuotesWithApostrophes,createCookieString:createCookieString,revertCookieString:revertCookieString,decodeCookies:decodeCookies,getCookieDomain:getCookieDomain,getUserIdentities:getUserIdentities,getAllUserAttributes:getAllUserAttributes,getCartProducts:getCartProducts,setCartProducts:setCartProducts,saveCookies:saveCookies,saveUserIdentitiesToCookies:saveUserIdentitiesToCookies,saveUserAttributesToCookies:saveUserAttributesToCookies,saveUserCookieSyncDatesToCookies:saveUserCookieSyncDatesToCookies,saveUserConsentStateToCookies:saveUserConsentStateToCookies,getPersistence:getPersistence,getDeviceId:getDeviceId,resetPersistence:resetPersistence,getConsentState:getConsentState,forwardingStatsBatches:forwardingStatsBatches,getFirstSeenTime:getFirstSeenTime,getLastSeenTime:getLastSeenTime,setFirstSeenTime:setFirstSeenTime,setLastSeenTime:setLastSeenTime};
 
 var Messages$2=Constants.Messages,cookieSyncManager={attemptCookieSync:function attemptCookieSync(a,b){var c,d,e,f,g;b&&!mParticle.Store.webviewBridgeEnabled&&mParticle.Store.pixelConfigurations.forEach(function(h){c={moduleId:h.moduleId,frequencyCap:h.frequencyCap,pixelUrl:cookieSyncManager.replaceAmp(h.pixelUrl),redirectUrl:h.redirectUrl?cookieSyncManager.replaceAmp(h.redirectUrl):null},e=cookieSyncManager.replaceMPID(c.pixelUrl,b),f=c.redirectUrl?cookieSyncManager.replaceMPID(c.redirectUrl,b):"",g=e+encodeURIComponent(f);var i=Persistence.getPersistence();return a&&a!==b?void(i&&i[b]&&(!i[b].csd&&(i[b].csd={}),performCookieSync(g,c.moduleId,b,i[b].csd))):void(i[b]&&(!i[b].csd&&(i[b].csd={}),d=i[b].csd[c.moduleId.toString()]?i[b].csd[c.moduleId.toString()]:null,d?new Date().getTime()>new Date(d).getTime()+24*(60*(1e3*(60*c.frequencyCap)))&&performCookieSync(g,c.moduleId,b,i[b].csd):performCookieSync(g,c.moduleId,b,i[b].csd)))});},replaceMPID:function replaceMPID(a,b){return a.replace("%%mpid%%",b)},replaceAmp:function replaceAmp(a){return a.replace(/&amp;/g,"&")}};function performCookieSync(a,b,c,d){var e=document.createElement("img");mParticle.Logger.verbose(Messages$2.InformationMessages.CookieSync),e.src=a,d[b.toString()]=new Date().getTime(),Persistence.saveUserCookieSyncDatesToCookies(c,d);}
 
-var MessageType$1=Types.MessageType,ApplicationTransitionType$1=Types.ApplicationTransitionType,parseNumber$1=Helpers.parseNumber;function convertCustomFlags(a,b){var c=[];for(var d in b.flags={},a.CustomFlags)c=[],a.CustomFlags.hasOwnProperty(d)&&(Array.isArray(a.CustomFlags[d])?a.CustomFlags[d].forEach(function(a){("number"==typeof a||"string"==typeof a||"boolean"==typeof a)&&c.push(a.toString());}):("number"==typeof a.CustomFlags[d]||"string"==typeof a.CustomFlags[d]||"boolean"==typeof a.CustomFlags[d])&&c.push(a.CustomFlags[d].toString()),c.length&&(b.flags[d]=c));}function appendUserInfo(a,b){if(b){if(!a)return b.MPID=null,b.ConsentState=null,b.UserAttributes=null,void(b.UserIdentities=null);if(!(b.MPID&&b.MPID===a.getMPID())){b.MPID=a.getMPID(),b.ConsentState=a.getConsentState(),b.UserAttributes=a.getAllUserAttributes();var c=a.getUserIdentities().userIdentities,d={};for(var e in c){var f=Types.IdentityType.getIdentityType(e);!1!==f&&(d[f]=c[e]);}var g=[];if(Helpers.isObject(d)&&Object.keys(d).length)for(var h in d){var i={};i.Identity=d[h],i.Type=Helpers.parseNumber(h),g.push(i);}b.UserIdentities=g;}}}function convertProductListToDTO(a){return a?a.map(function(a){return convertProductToDTO(a)}):[]}function convertProductToDTO(a){return {id:Helpers.parseStringOrNumber(a.Sku),nm:Helpers.parseStringOrNumber(a.Name),pr:parseNumber$1(a.Price),qt:parseNumber$1(a.Quantity),br:Helpers.parseStringOrNumber(a.Brand),va:Helpers.parseStringOrNumber(a.Variant),ca:Helpers.parseStringOrNumber(a.Category),ps:parseNumber$1(a.Position),cc:Helpers.parseStringOrNumber(a.CouponCode),tpa:parseNumber$1(a.TotalAmount),attrs:a.Attributes}}function convertToConsentStateDTO(a){if(!a)return null;var b={},c=a.getGDPRConsentState();if(c){var d={};for(var e in b.gdpr=d,c)if(c.hasOwnProperty(e)){var f=c[e];b.gdpr[e]={},"boolean"==typeof f.Consented&&(d[e].c=f.Consented),"number"==typeof f.Timestamp&&(d[e].ts=f.Timestamp),"string"==typeof f.ConsentDocument&&(d[e].d=f.ConsentDocument),"string"==typeof f.Location&&(d[e].l=f.Location),"string"==typeof f.HardwareId&&(d[e].h=f.HardwareId);}}return b}function createEventObject(a){var b={},c={},d=a.messageType===Types.MessageType.OptOut?!mParticle.Store.isEnabled:null;if(mParticle.Store.sessionId||a.messageType==Types.MessageType.OptOut||mParticle.Store.webviewBridgeEnabled){c=a.hasOwnProperty("toEventAPIObject")?a.toEventAPIObject():{EventName:a.name||a.messageType,EventCategory:a.eventType,EventAttributes:Helpers.sanitizeAttributes(a.data),EventDataType:a.messageType,CustomFlags:a.customFlags||{}},a.messageType!==Types.MessageType.SessionEnd&&(mParticle.Store.dateLastEventSent=new Date),b={Store:mParticle.Store.serverSettings,SDKVersion:Constants.sdkVersion,SessionId:mParticle.Store.sessionId,SessionStartDate:mParticle.Store.sessionStartDate?mParticle.Store.sessionStartDate.getTime():null,Debug:mParticle.Store.SDKConfig.isDevelopmentMode,Location:mParticle.Store.currentPosition,OptOut:d,ExpandedEventCount:0,AppVersion:mParticle.Store.SDKConfig.appVersion,ClientGeneratedId:mParticle.Store.clientId,DeviceId:mParticle.Store.deviceId,IntegrationAttributes:mParticle.Store.integrationAttributes,CurrencyCode:mParticle.Store.currencyCode},c.CurrencyCode=mParticle.Store.currencyCode;var e=mParticle.Identity.getCurrentUser();return appendUserInfo(e,c),a.messageType===Types.MessageType.SessionEnd&&(c.SessionLength=mParticle.Store.dateLastEventSent.getTime()-mParticle.Store.sessionStartDate.getTime(),c.currentSessionMPIDs=mParticle.Store.currentSessionMPIDs,c.EventAttributes=mParticle.Store.sessionAttributes,mParticle.Store.currentSessionMPIDs=[],mParticle.Store.sessionStartDate=null),b.Timestamp=mParticle.Store.dateLastEventSent.getTime(),Helpers.extend({},c,b)}return null}function convertEventToDTO(a,b){var c={n:a.EventName,et:a.EventCategory,ua:a.UserAttributes,ui:a.UserIdentities,ia:a.IntegrationAttributes,str:a.Store,attrs:a.EventAttributes,sdk:a.SDKVersion,sid:a.SessionId,sl:a.SessionLength,ssd:a.SessionStartDate,dt:a.EventDataType,dbg:a.Debug,ct:a.Timestamp,lc:a.Location,o:a.OptOut,eec:a.ExpandedEventCount,av:a.AppVersion,cgid:a.ClientGeneratedId,das:a.DeviceId,mpid:a.MPID,smpids:a.currentSessionMPIDs},d=convertToConsentStateDTO(a.ConsentState);return d&&(c.con=d),a.EventDataType===MessageType$1.AppStateTransition&&(c.fr=b,c.iu=!1,c.at=ApplicationTransitionType$1.AppInit,c.lr=window.location.href||null,c.attrs=null),a.CustomFlags&&convertCustomFlags(a,c),a.EventDataType===MessageType$1.Commerce?(c.cu=a.CurrencyCode,a.ShoppingCart&&(c.sc={pl:convertProductListToDTO(a.ShoppingCart.ProductList)}),a.ProductAction?c.pd={an:a.ProductAction.ProductActionType,cs:parseNumber$1(a.ProductAction.CheckoutStep),co:a.ProductAction.CheckoutOptions,pl:convertProductListToDTO(a.ProductAction.ProductList),ti:a.ProductAction.TransactionId,ta:a.ProductAction.Affiliation,tcc:a.ProductAction.CouponCode,tr:parseNumber$1(a.ProductAction.TotalAmount),ts:parseNumber$1(a.ProductAction.ShippingAmount),tt:parseNumber$1(a.ProductAction.TaxAmount)}:a.PromotionAction?c.pm={an:a.PromotionAction.PromotionActionType,pl:a.PromotionAction.PromotionList.map(function(a){return {id:a.Id,nm:a.Name,cr:a.Creative,ps:a.Position?a.Position:0}})}:a.ProductImpressions&&(c.pi=a.ProductImpressions.map(function(a){return {pil:a.ProductImpressionList,pl:convertProductListToDTO(a.ProductList)}}))):a.EventDataType===MessageType$1.Profile&&(c.pet=a.ProfileMessageType),c}var ServerModel = {createEventObject:createEventObject,convertEventToDTO:convertEventToDTO,convertToConsentStateDTO:convertToConsentStateDTO,appendUserInfo:appendUserInfo};
+var MessageType$1=Types.MessageType,ApplicationTransitionType$1=Types.ApplicationTransitionType,parseNumber$1=Helpers.parseNumber;function convertCustomFlags(a,b){var c=[];for(var d in b.flags={},a.CustomFlags)c=[],a.CustomFlags.hasOwnProperty(d)&&(Array.isArray(a.CustomFlags[d])?a.CustomFlags[d].forEach(function(a){("number"==typeof a||"string"==typeof a||"boolean"==typeof a)&&c.push(a.toString());}):("number"==typeof a.CustomFlags[d]||"string"==typeof a.CustomFlags[d]||"boolean"==typeof a.CustomFlags[d])&&c.push(a.CustomFlags[d].toString()),c.length&&(b.flags[d]=c));}function appendUserInfo(a,b){if(b){if(!a)return b.MPID=null,b.ConsentState=null,b.UserAttributes=null,void(b.UserIdentities=null);if(!(b.MPID&&b.MPID===a.getMPID())){b.MPID=a.getMPID(),b.ConsentState=a.getConsentState(),b.UserAttributes=a.getAllUserAttributes();var c=a.getUserIdentities().userIdentities,d={};for(var e in c){var f=Types.IdentityType.getIdentityType(e);!1!==f&&(d[f]=c[e]);}var g=[];if(Helpers.isObject(d)&&Object.keys(d).length)for(var h in d){var i={};i.Identity=d[h],i.Type=Helpers.parseNumber(h),g.push(i);}b.UserIdentities=g;}}}function convertProductListToDTO(a){return a?a.map(function(a){return convertProductToDTO(a)}):[]}function convertProductToDTO(a){return {id:Helpers.parseStringOrNumber(a.Sku),nm:Helpers.parseStringOrNumber(a.Name),pr:parseNumber$1(a.Price),qt:parseNumber$1(a.Quantity),br:Helpers.parseStringOrNumber(a.Brand),va:Helpers.parseStringOrNumber(a.Variant),ca:Helpers.parseStringOrNumber(a.Category),ps:parseNumber$1(a.Position),cc:Helpers.parseStringOrNumber(a.CouponCode),tpa:parseNumber$1(a.TotalAmount),attrs:a.Attributes}}function convertToConsentStateDTO(a){if(!a)return null;var b={},c=a.getGDPRConsentState();if(c){var d={};for(var e in b.gdpr=d,c)if(c.hasOwnProperty(e)){var f=c[e];b.gdpr[e]={},"boolean"==typeof f.Consented&&(d[e].c=f.Consented),"number"==typeof f.Timestamp&&(d[e].ts=f.Timestamp),"string"==typeof f.ConsentDocument&&(d[e].d=f.ConsentDocument),"string"==typeof f.Location&&(d[e].l=f.Location),"string"==typeof f.HardwareId&&(d[e].h=f.HardwareId);}}return b}function createEventObject(a){var b={},c={},d=a.messageType===Types.MessageType.OptOut?!mParticle.Store.isEnabled:null;if(mParticle.Store.sessionId||a.messageType==Types.MessageType.OptOut||mParticle.Store.webviewBridgeEnabled){c=a.hasOwnProperty("toEventAPIObject")?a.toEventAPIObject():{EventName:a.name||a.messageType,EventCategory:a.eventType,EventAttributes:Helpers.sanitizeAttributes(a.data),EventDataType:a.messageType,CustomFlags:a.customFlags||{},UserAttributeChanges:a.userAttributeChanges,UserIdentityChanges:a.userIdentityChanges},a.messageType!==Types.MessageType.SessionEnd&&(mParticle.Store.dateLastEventSent=new Date),b={Store:mParticle.Store.serverSettings,SDKVersion:Constants.sdkVersion,SessionId:mParticle.Store.sessionId,SessionStartDate:mParticle.Store.sessionStartDate?mParticle.Store.sessionStartDate.getTime():null,Debug:mParticle.Store.SDKConfig.isDevelopmentMode,Location:mParticle.Store.currentPosition,OptOut:d,ExpandedEventCount:0,AppVersion:mParticle.Store.SDKConfig.appVersion,ClientGeneratedId:mParticle.Store.clientId,DeviceId:mParticle.Store.deviceId,IntegrationAttributes:mParticle.Store.integrationAttributes,CurrencyCode:mParticle.Store.currencyCode},c.CurrencyCode=mParticle.Store.currencyCode;var e=mParticle.Identity.getCurrentUser();return appendUserInfo(e,c),a.messageType===Types.MessageType.SessionEnd&&(c.SessionLength=mParticle.Store.dateLastEventSent.getTime()-mParticle.Store.sessionStartDate.getTime(),c.currentSessionMPIDs=mParticle.Store.currentSessionMPIDs,c.EventAttributes=mParticle.Store.sessionAttributes,mParticle.Store.currentSessionMPIDs=[],mParticle.Store.sessionStartDate=null),b.Timestamp=mParticle.Store.dateLastEventSent.getTime(),Helpers.extend({},c,b)}return null}function convertEventToDTO(a,b){var c={n:a.EventName,et:a.EventCategory,ua:a.UserAttributes,ui:a.UserIdentities,ia:a.IntegrationAttributes,str:a.Store,attrs:a.EventAttributes,sdk:a.SDKVersion,sid:a.SessionId,sl:a.SessionLength,ssd:a.SessionStartDate,dt:a.EventDataType,dbg:a.Debug,ct:a.Timestamp,lc:a.Location,o:a.OptOut,eec:a.ExpandedEventCount,av:a.AppVersion,cgid:a.ClientGeneratedId,das:a.DeviceId,mpid:a.MPID,smpids:a.currentSessionMPIDs},d=convertToConsentStateDTO(a.ConsentState);return d&&(c.con=d),a.EventDataType===MessageType$1.AppStateTransition&&(c.fr=b,c.iu=!1,c.at=ApplicationTransitionType$1.AppInit,c.lr=window.location.href||null,c.attrs=null),a.CustomFlags&&convertCustomFlags(a,c),a.EventDataType===MessageType$1.Commerce?(c.cu=a.CurrencyCode,a.ShoppingCart&&(c.sc={pl:convertProductListToDTO(a.ShoppingCart.ProductList)}),a.ProductAction?c.pd={an:a.ProductAction.ProductActionType,cs:parseNumber$1(a.ProductAction.CheckoutStep),co:a.ProductAction.CheckoutOptions,pl:convertProductListToDTO(a.ProductAction.ProductList),ti:a.ProductAction.TransactionId,ta:a.ProductAction.Affiliation,tcc:a.ProductAction.CouponCode,tr:parseNumber$1(a.ProductAction.TotalAmount),ts:parseNumber$1(a.ProductAction.ShippingAmount),tt:parseNumber$1(a.ProductAction.TaxAmount)}:a.PromotionAction?c.pm={an:a.PromotionAction.PromotionActionType,pl:a.PromotionAction.PromotionList.map(function(a){return {id:a.Id,nm:a.Name,cr:a.Creative,ps:a.Position?a.Position:0}})}:a.ProductImpressions&&(c.pi=a.ProductImpressions.map(function(a){return {pil:a.ProductImpressionList,pl:convertProductListToDTO(a.ProductList)}}))):a.EventDataType===MessageType$1.Profile&&(c.pet=a.ProfileMessageType),c}var ServerModel = {createEventObject:createEventObject,convertEventToDTO:convertEventToDTO,convertToConsentStateDTO:convertToConsentStateDTO,appendUserInfo:appendUserInfo};
 
 function getFilteredMparticleUser(a,b){return {getUserIdentities:function getUserIdentities(){var c={},d=Persistence.getUserIdentities(a);for(var e in d)d.hasOwnProperty(e)&&(c[Types.IdentityType.getIdentityName(Helpers.parseNumber(e))]=d[e]);return c=Helpers.filterUserIdentitiesForForwarders(c,b.userIdentityFilters),{userIdentities:c}},getMPID:function getMPID(){return a},getUserAttributesLists:function getUserAttributesLists(a){var b,c={};for(var d in b=this.getAllUserAttributes(),b)b.hasOwnProperty(d)&&Array.isArray(b[d])&&(c[d]=b[d].slice());return c=Helpers.filterUserAttributes(c,a.userAttributeFilters),c},getAllUserAttributes:function getAllUserAttributes(){var c={},d=Persistence.getAllUserAttributes(a);if(d)for(var e in d)d.hasOwnProperty(e)&&(c[e]=Array.isArray(d[e])?d[e].slice():d[e]);return c=Helpers.filterUserAttributes(c,b.userAttributeFilters),c}}}
 
@@ -2563,6 +2847,12 @@ var defineProperty = _defineProperty;
 var SDKProductActionType;
 (function (a) { a[a.Unknown = 0] = "Unknown", a[a.AddToCart = 1] = "AddToCart", a[a.RemoveFromCart = 2] = "RemoveFromCart", a[a.Checkout = 3] = "Checkout", a[a.CheckoutOption = 4] = "CheckoutOption", a[a.Click = 5] = "Click", a[a.ViewDetail = 6] = "ViewDetail", a[a.Purchase = 7] = "Purchase", a[a.Refund = 8] = "Refund", a[a.AddToWishlist = 9] = "AddToWishlist", a[a.RemoveFromWishlist = 10] = "RemoveFromWishlist"; })(SDKProductActionType || (SDKProductActionType = {}));
 
+function ownKeys(a, b) { var c = Object.keys(a); if (Object.getOwnPropertySymbols) {
+    var d = Object.getOwnPropertySymbols(a);
+    b && (d = d.filter(function (b) { return Object.getOwnPropertyDescriptor(a, b).enumerable; })), c.push.apply(c, d);
+} return c; }
+function _objectSpread(a) { for (var b, c = 1; c < arguments.length; c++)
+    b = null == arguments[c] ? {} : arguments[c], c % 2 ? ownKeys(b, !0).forEach(function (c) { defineProperty(a, c, b[c]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(a, Object.getOwnPropertyDescriptors(b)) : ownKeys(b).forEach(function (c) { Object.defineProperty(a, c, Object.getOwnPropertyDescriptor(b, c)); }); return a; }
 function convertEvents(a, b) { if (!a)
     return null; if (!b || 1 > b.length)
     return null; var c = [], d = null, e = !0, f = !1, g = void 0; try {
@@ -2654,6 +2944,8 @@ function convertEvent(a) {
             return null;
         case Types.MessageType.SessionEnd: return convertSessionEndEvent(a);
         case Types.MessageType.SessionStart: return convertSessionStartEvent(a);
+        case Types.MessageType.UserAttributeChange: return convertUserAttributeChangeEvent(a);
+        case Types.MessageType.UserIdentityChange: return convertUserIdentityChangeEvent(a);
         default:
     }
     return null;
@@ -2738,6 +3030,8 @@ function convertOptOutEvent(a) { var b = convertBaseEventData(a), c = { is_opted
 function convertCustomEvent(a) { var b = convertBaseEventData(a), c = { custom_event_type: convertSdkEventType(a.EventCategory), custom_flags: a.CustomFlags, event_name: a.EventName }; return c = Object.assign(c, b), { event_type: "custom_event", data: c }; }
 function convertSdkEventType(a) { return a === Types.EventType.Other ? "other" : a === Types.EventType.Location ? "location" : a === Types.EventType.Navigation ? "navigation" : a === Types.EventType.Search ? "search" : a === Types.EventType.Social ? "social" : a === Types.EventType.Transaction ? "transaction" : a === Types.EventType.UserContent ? "user_content" : a === Types.EventType.UserPreference ? "user_preference" : a === Types.CommerceEventType.ProductAddToCart ? "add_to_cart" : a === Types.CommerceEventType.ProductAddToWishlist ? "add_to_wishlist" : a === Types.CommerceEventType.ProductCheckout ? "checkout" : a === Types.CommerceEventType.ProductCheckoutOption ? "checkout_option" : a === Types.CommerceEventType.ProductClick ? "click" : a === Types.CommerceEventType.ProductImpression ? "impression" : a === Types.CommerceEventType.ProductPurchase ? "purchase" : a === Types.CommerceEventType.ProductRefund ? "refund" : a === Types.CommerceEventType.ProductRemoveFromCart ? "remove_from_cart" : a === Types.CommerceEventType.ProductRemoveFromWishlist ? "remove_from_wishlist" : a === Types.CommerceEventType.ProductViewDetail ? "view_detail" : a === Types.CommerceEventType.PromotionClick ? "promotion_click" : a === Types.CommerceEventType.PromotionView ? "promotion_view" : "unknown"; }
 function convertBaseEventData(a) { var b = { timestamp_unixtime_ms: a.Timestamp, session_uuid: a.SessionId, session_start_unixtime_ms: a.SessionStartDate, custom_attributes: a.EventAttributes, location: a.Location }; return b; }
+function convertUserAttributeChangeEvent(a) { var b = convertBaseEventData(a), c = { user_attribute_name: a.UserAttributeChanges.UserAttributeName, new: a.UserAttributeChanges.New, old: a.UserAttributeChanges.Old, deleted: a.UserAttributeChanges.Deleted, is_new_attribute: a.UserAttributeChanges.IsNewAttribute }; return c = _objectSpread({}, c, {}, b), { event_type: "user_attribute_change", data: c }; }
+function convertUserIdentityChangeEvent(a) { var b = convertBaseEventData(a), c = { new: { identity_type: a.UserIdentityChanges.New.IdentityType, identity: a.UserIdentityChanges.New.Identity || null, timestamp_unixtime_ms: a.Timestamp, created_this_batch: a.UserIdentityChanges.New.CreatedThisBatch }, old: { identity_type: a.UserIdentityChanges.Old.IdentityType, identity: a.UserIdentityChanges.Old.Identity || null, timestamp_unixtime_ms: a.Timestamp, created_this_batch: a.UserIdentityChanges.Old.CreatedThisBatch } }; return c = Object.assign(c, b), { event_type: "user_identity_change", data: c }; }
 
 var BatchUploader = /*#__PURE__*/ function () {
     function a(b, c) { var d = this; classCallCheck(this, a), defineProperty(this, "uploadIntervalMillis", void 0), defineProperty(this, "pendingEvents", void 0), defineProperty(this, "pendingUploads", void 0), defineProperty(this, "webSdk", void 0), defineProperty(this, "uploadUrl", void 0), defineProperty(this, "batchingEnabled", void 0), this.webSdk = b, this.uploadIntervalMillis = c, this.batchingEnabled = c >= a.MINIMUM_INTERVAL_MILLIS, this.uploadIntervalMillis < a.MINIMUM_INTERVAL_MILLIS && (this.uploadIntervalMillis = a.MINIMUM_INTERVAL_MILLIS), this.pendingEvents = [], this.pendingUploads = []; var e = this.webSdk.Store, f = e.SDKConfig, g = e.devToken, h = Helpers.createServiceUrl(f.v3SecureServiceUrl, g); this.uploadUrl = "".concat(h, "/events"), setTimeout(function () { d.prepareAndUpload(!0, !1); }, this.uploadIntervalMillis), this.addEventListeners(); }
@@ -2875,46 +3169,46 @@ mParticle.Store.currentPosition={lat:b.coords.latitude,lng:b.coords.longitude},d
 d(a),a=null,mParticle.Store.isTracking=!1;}function d(a,b){if(a)try{b?a(b):a();}catch(a){mParticle.Logger.error("Error invoking the callback passed to startTrackingLocation."),mParticle.Logger.error(a);}}if(!mParticle.Store.isTracking)"geolocation"in navigator&&(mParticle.Store.watchPositionId=navigator.geolocation.watchPosition(b,c));else{var e={coords:{latitude:mParticle.Store.currentPosition.lat,longitude:mParticle.Store.currentPosition.lng}};d(a,e);}}function stopTracking(){mParticle.Store.isTracking&&(navigator.geolocation.clearWatch(mParticle.Store.watchPositionId),mParticle.Store.currentPosition=null,mParticle.Store.isTracking=!1);}function logOptOut(){mParticle.Logger.verbose(Messages$5.InformationMessages.StartingLogOptOut);var a=ServerModel.createEventObject({messageType:Types.MessageType.OptOut,eventType:Types.EventType.Other});sendEventToServer$1(a);}function logAST(){logEvent({messageType:Types.MessageType.AppStateTransition});}function logCheckoutEvent(a,b,c,d){var e=Ecommerce.createCommerceEventObject(d);e&&(e.EventName+=Ecommerce.getProductActionEventName(Types.ProductActionType.Checkout),e.EventCategory=Types.CommerceEventType.ProductCheckout,e.ProductAction={ProductActionType:Types.ProductActionType.Checkout,CheckoutStep:a,CheckoutOptions:b,ProductList:e.ShoppingCart.ProductList},logCommerceEvent(e,c));}function logProductActionEvent(a,b,c,d){var e=Ecommerce.createCommerceEventObject(d);e&&(e.EventCategory=Ecommerce.convertProductActionToEventType(a),e.EventName+=Ecommerce.getProductActionEventName(a),e.ProductAction={ProductActionType:a,ProductList:Array.isArray(b)?b:[b]},logCommerceEvent(e,c));}function logPurchaseEvent(a,b,c,d){var e=Ecommerce.createCommerceEventObject(d);e&&(e.EventName+=Ecommerce.getProductActionEventName(Types.ProductActionType.Purchase),e.EventCategory=Types.CommerceEventType.ProductPurchase,e.ProductAction={ProductActionType:Types.ProductActionType.Purchase},e.ProductAction.ProductList=Ecommerce.buildProductList(e,b),Ecommerce.convertTransactionAttributesToProductAction(a,e.ProductAction),logCommerceEvent(e,c));}function logRefundEvent(a,b,c,d){if(!a)return void mParticle.Logger.error(Messages$5.ErrorMessages.TransactionRequired);var e=Ecommerce.createCommerceEventObject(d);e&&(e.EventName+=Ecommerce.getProductActionEventName(Types.ProductActionType.Refund),e.EventCategory=Types.CommerceEventType.ProductRefund,e.ProductAction={ProductActionType:Types.ProductActionType.Refund},e.ProductAction.ProductList=Ecommerce.buildProductList(e,b),Ecommerce.convertTransactionAttributesToProductAction(a,e.ProductAction),logCommerceEvent(e,c));}function logPromotionEvent(a,b,c,d){var e=Ecommerce.createCommerceEventObject(d);e&&(e.EventName+=Ecommerce.getPromotionActionEventName(a),e.EventCategory=Ecommerce.convertPromotionActionToEventType(a),e.PromotionAction={PromotionActionType:a,PromotionList:[b]},logCommerceEvent(e,c));}function logImpressionEvent(a,b,c){var d=Ecommerce.createCommerceEventObject(c);d&&(d.EventName+="Impression",d.EventCategory=Types.CommerceEventType.ProductImpression,!Array.isArray(a)&&(a=[a]),d.ProductImpressions=[],a.forEach(function(a){d.ProductImpressions.push({ProductImpressionList:a.Name,ProductList:Array.isArray(a.Product)?a.Product:[a.Product]});}),logCommerceEvent(d,b));}function logCommerceEvent(a,b){mParticle.Logger.verbose(Messages$5.InformationMessages.StartingLogCommerceEvent),b=Helpers.sanitizeAttributes(b),Helpers.canLog()?(mParticle.Store.webviewBridgeEnabled&&(a.ShoppingCart={}),b&&(a.EventAttributes=b),sendEventToServer$1(a),Persistence.update()):mParticle.Logger.verbose(Messages$5.InformationMessages.AbandonLogEvent);}function addEventHandler(a,b,c,d,f){var g,h,e=[],j=function(a){var b=function(){g.href?window.location.href=g.href:g.submit&&g.submit();};mParticle.Logger.verbose("DOM event triggered, handling event"),logEvent({messageType:Types.MessageType.PageEvent,name:"function"==typeof c?c(g):c,data:"function"==typeof d?d(g):d,eventType:f||Types.EventType.Other}),(g.href&&"_blank"!==g.target||g.submit)&&(a.preventDefault?a.preventDefault():a.returnValue=!1,setTimeout(b,mParticle.Store.SDKConfig.timeout));};if(!b)return void mParticle.Logger.error("Can't bind event, selector is required");// Handle a css selector string or a dom element
 if("string"==typeof b?e=document.querySelectorAll(b):b.nodeType&&(e=[b]),e.length)for(mParticle.Logger.verbose("Found "+e.length+" element"+(1<e.length?"s":"")+", attaching event handlers"),h=0;h<e.length;h++)g=e[h],g.addEventListener?g.addEventListener(a,j,!1):g.attachEvent?g.attachEvent("on"+a,j):g["on"+a]=j;else mParticle.Logger.verbose("No elements found");}var Events = {logEvent:logEvent,startTracking:startTracking,stopTracking:stopTracking,logCheckoutEvent:logCheckoutEvent,logProductActionEvent:logProductActionEvent,logPurchaseEvent:logPurchaseEvent,logRefundEvent:logRefundEvent,logPromotionEvent:logPromotionEvent,logImpressionEvent:logImpressionEvent,logOptOut:logOptOut,logAST:logAST,addEventHandler:addEventHandler};
 
-var Messages$6=Constants.Messages,Validators$2=Helpers.Validators,HTTPCodes$1=Constants.HTTPCodes,sendIdentityRequest$1=ApiClient.sendIdentityRequest;function checkIdentitySwap(a,b,c){if(a&&b&&a!==b){var d=Persistence.useLocalStorage()?Persistence.getLocalStorage():Persistence.getCookie();d.cu=b,d.gs.csm=c,Persistence.saveCookies(d);}}var IdentityRequest={createKnownIdentities:function createKnownIdentities(a,b){var c={};if(a&&a.userIdentities&&Helpers.isObject(a.userIdentities))for(var d in a.userIdentities)c[d]=a.userIdentities[d];return c.device_application_stamp=b,c},preProcessIdentityRequest:function preProcessIdentityRequest(a,b,c){mParticle.Logger.verbose(Messages$6.InformationMessages.StartingLogEvent+": "+c);var d=Validators$2.validateIdentities(a,c);if(!d.valid)return mParticle.Logger.error("ERROR: "+d.error),{valid:!1,error:d.error};if(b&&!Validators$2.isFunction(b)){var e="The optional callback must be a function. You tried entering a(n) "+_typeof_1(b);return mParticle.Logger.error(e),{valid:!1,error:e}}return {valid:!0}},createIdentityRequest:function createIdentityRequest(a,b,c,d,e,f,g){var h={client_sdk:{platform:b,sdk_vendor:c,sdk_version:d},context:f,environment:mParticle.Store.SDKConfig.isDevelopmentMode?"development":"production",request_id:Helpers.generateUniqueId(),request_timestamp_ms:new Date().getTime(),previous_mpid:g||null,known_identities:this.createKnownIdentities(a,e)};return h},createModifyIdentityRequest:function createModifyIdentityRequest(a,b,c,d,e,f){return {client_sdk:{platform:c,sdk_vendor:d,sdk_version:e},context:f,environment:mParticle.Store.SDKConfig.isDevelopmentMode?"development":"production",request_id:Helpers.generateUniqueId(),request_timestamp_ms:new Date().getTime(),identity_changes:this.createIdentityChanges(a,b)}},createIdentityChanges:function createIdentityChanges(a,b){var c,d=[];if(b&&Helpers.isObject(b)&&a&&Helpers.isObject(a))for(c in b)d.push({old_value:a[c]||null,new_value:b[c],identity_type:c});return d},modifyUserIdentities:function modifyUserIdentities(a,b){var c={};for(var d in b)c[Types.IdentityType.getIdentityType(d)]=b[d];for(d in a)c[d]||(c[d]=a[d]);return c},createAliasNetworkRequest:function createAliasNetworkRequest(a){return {request_id:Helpers.generateUniqueId(),request_type:"alias",environment:mParticle.Store.SDKConfig.isDevelopmentMode?"development":"production",api_key:mParticle.Store.devToken,data:{destination_mpid:a.destinationMpid,source_mpid:a.sourceMpid,start_unixtime_ms:a.startTime,end_unixtime_ms:a.endTime,device_application_stamp:mParticle.Store.deviceId}}},convertAliasToNative:function convertAliasToNative(a){return {DestinationMpid:a.destinationMpid,SourceMpid:a.sourceMpid,StartUnixtimeMs:a.startTime,EndUnixtimeMs:a.endTime}},convertToNative:function convertToNative(a){var b=[];if(a&&a.userIdentities){for(var c in a.userIdentities)a.userIdentities.hasOwnProperty(c)&&b.push({Type:Types.IdentityType.getIdentityType(c),Identity:a.userIdentities[c]});return {UserIdentities:b}}}},IdentityAPI={HTTPCodes:HTTPCodes$1,/**
-    * Initiate a logout request to the mParticle server
-    * @method identify
-    * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
-    * @param {Function} [callback] A callback function that is called when the identify request completes
-    */identify:function identify(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"identify");if(d&&(c=d.getMPID()),e.valid){var f=IdentityRequest.createIdentityRequest(a,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.deviceId,mParticle.Store.context,c);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Identify,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Identify request sent to native sdk")):sendIdentityRequest$1(f,"identify",b,a,parseIdentityResponse,c):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
-    * Initiate a logout request to the mParticle server
-    * @method logout
-    * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
-    * @param {Function} [callback] A callback function that is called when the logout request completes
-    */logout:function logout(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"logout");if(d&&(c=d.getMPID()),e.valid){var f,g=IdentityRequest.createIdentityRequest(a,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.deviceId,mParticle.Store.context,c);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Logout,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Logout request sent to native sdk")):(sendIdentityRequest$1(g,"logout",b,a,parseIdentityResponse,c),f=ServerModel.createEventObject({messageType:Types.MessageType.Profile}),f.ProfileMessageType=Types.ProfileMessageType.Logout,mParticle.Store.activeForwarders.length&&mParticle.Store.activeForwarders.forEach(function(a){a.logOut&&a.logOut(f);})):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
-    * Initiate a login request to the mParticle server
-    * @method login
-    * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
-    * @param {Function} [callback] A callback function that is called when the login request completes
-    */login:function login(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"login");if(d&&(c=d.getMPID()),e.valid){var f=IdentityRequest.createIdentityRequest(a,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.deviceId,mParticle.Store.context,c);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Login,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Login request sent to native sdk")):sendIdentityRequest$1(f,"login",b,a,parseIdentityResponse,c):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
-    * Initiate a modify request to the mParticle server
-    * @method modify
-    * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
-    * @param {Function} [callback] A callback function that is called when the modify request completes
-    */modify:function modify(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"modify");d&&(c=d.getMPID());var f=a&&a.userIdentities?a.userIdentities:{};if(e.valid){var g=IdentityRequest.createModifyIdentityRequest(d?d.getUserIdentities().userIdentities:{},f,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.context);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Modify,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Modify request sent to native sdk")):sendIdentityRequest$1(g,"modify",b,a,parseIdentityResponse,c):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
-    * Returns a user object with methods to interact with the current user
-    * @method getCurrentUser
-    * @return {Object} the current user object
-    */getCurrentUser:function getCurrentUser(){var a=mParticle.Store.mpid;return a?(a=mParticle.Store.mpid.slice(),mParticleUser(a,mParticle.Store.isLoggedIn)):mParticle.Store.webviewBridgeEnabled?mParticleUser():null},/**
-    * Returns a the user object associated with the mpid parameter or 'null' if no such
-    * user exists
-    * @method getUser
-    * @param {String} mpid of the desired user
-    * @return {Object} the user for  mpid
-    */getUser:function getUser(a){var b=Persistence.getPersistence();return b?b[a]&&!Constants.SDKv2NonMPIDCookieKeys.hasOwnProperty(a)?mParticleUser(a):null:null},/**
-    * Returns all users, including the current user and all previous users that are stored on the device.
-    * @method getUsers
-    * @return {Array} array of users
-    */getUsers:function getUsers(){var a=Persistence.getPersistence(),b=[];if(a)for(var c in a)Constants.SDKv2NonMPIDCookieKeys.hasOwnProperty(c)||b.push(mParticleUser(c));return b.sort(function(c,a){var b=c.getLastSeenTime()||0,d=a.getLastSeenTime()||0;return b>d?-1:1}),b},/**
-    * Initiate an alias request to the mParticle server
-    * @method aliasUsers 
-    * @param {Object} aliasRequest  object representing an AliasRequest
-    * @param {Function} [callback] A callback function that is called when the aliasUsers request completes
-    */aliasUsers:function aliasUsers(a,b){var c;if(a.destinationMpid&&a.sourceMpid||(c=Messages$6.ValidationMessages.AliasMissingMpid),a.destinationMpid===a.sourceMpid&&(c=Messages$6.ValidationMessages.AliasNonUniqueMpid),a.startTime&&a.endTime||(c=Messages$6.ValidationMessages.AliasMissingTime),a.startTime>a.endTime&&(c=Messages$6.ValidationMessages.AliasStartBeforeEndTime),c)return mParticle.Logger.warning(c),void Helpers.invokeAliasCallback(b,HTTPCodes$1.validationIssue,c);if(!Helpers.canLog())Helpers.invokeAliasCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonAliasUsers),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonAliasUsers);else if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Alias,JSON.stringify(IdentityRequest.convertAliasToNative(a))),Helpers.invokeAliasCallback(b,HTTPCodes$1.nativeIdentityRequest,"Alias request sent to native sdk");else{mParticle.Logger.verbose(Messages$6.InformationMessages.StartingAliasRequest+": "+a.sourceMpid+" -> "+a.destinationMpid);var d=IdentityRequest.createAliasNetworkRequest(a);ApiClient.sendAliasRequest(d,b);}},/**
+var Messages$6=Constants.Messages,Validators$2=Helpers.Validators,HTTPCodes$1=Constants.HTTPCodes,sendIdentityRequest$1=ApiClient.sendIdentityRequest,sendEventToServer$2=ApiClient.sendEventToServer;function checkIdentitySwap(a,b,c){if(a&&b&&a!==b){var d=Persistence.useLocalStorage()?Persistence.getLocalStorage():Persistence.getCookie();d.cu=b,d.gs.csm=c,Persistence.saveCookies(d);}}var IdentityRequest={createKnownIdentities:function createKnownIdentities(a,b){var c={};if(a&&a.userIdentities&&Helpers.isObject(a.userIdentities))for(var d in a.userIdentities)c[d]=a.userIdentities[d];return c.device_application_stamp=b,c},preProcessIdentityRequest:function preProcessIdentityRequest(a,b,c){mParticle.Logger.verbose(Messages$6.InformationMessages.StartingLogEvent+": "+c);var d=Validators$2.validateIdentities(a,c);if(!d.valid)return mParticle.Logger.error("ERROR: "+d.error),{valid:!1,error:d.error};if(b&&!Validators$2.isFunction(b)){var e="The optional callback must be a function. You tried entering a(n) "+_typeof_1(b);return mParticle.Logger.error(e),{valid:!1,error:e}}return {valid:!0}},createIdentityRequest:function createIdentityRequest(a,b,c,d,e,f,g){var h={client_sdk:{platform:b,sdk_vendor:c,sdk_version:d},context:f,environment:mParticle.Store.SDKConfig.isDevelopmentMode?"development":"production",request_id:Helpers.generateUniqueId(),request_timestamp_ms:new Date().getTime(),previous_mpid:g||null,known_identities:this.createKnownIdentities(a,e)};return h},createModifyIdentityRequest:function createModifyIdentityRequest(a,b,c,d,e,f){return {client_sdk:{platform:c,sdk_vendor:d,sdk_version:e},context:f,environment:mParticle.Store.SDKConfig.isDevelopmentMode?"development":"production",request_id:Helpers.generateUniqueId(),request_timestamp_ms:new Date().getTime(),identity_changes:this.createIdentityChanges(a,b)}},createIdentityChanges:function createIdentityChanges(a,b){var c,d=[];if(b&&Helpers.isObject(b)&&a&&Helpers.isObject(a))for(c in b)d.push({old_value:a[c]||null,new_value:b[c],identity_type:c});return d},modifyUserIdentities:function modifyUserIdentities(a,b){var c={};for(var d in b)c[Types.IdentityType.getIdentityType(d)]=b[d];for(d in a)c[d]||(c[d]=a[d]);return c},createAliasNetworkRequest:function createAliasNetworkRequest(a){return {request_id:Helpers.generateUniqueId(),request_type:"alias",environment:mParticle.Store.SDKConfig.isDevelopmentMode?"development":"production",api_key:mParticle.Store.devToken,data:{destination_mpid:a.destinationMpid,source_mpid:a.sourceMpid,start_unixtime_ms:a.startTime,end_unixtime_ms:a.endTime,device_application_stamp:mParticle.Store.deviceId}}},convertAliasToNative:function convertAliasToNative(a){return {DestinationMpid:a.destinationMpid,SourceMpid:a.sourceMpid,StartUnixtimeMs:a.startTime,EndUnixtimeMs:a.endTime}},convertToNative:function convertToNative(a){var b=[];if(a&&a.userIdentities){for(var c in a.userIdentities)a.userIdentities.hasOwnProperty(c)&&b.push({Type:Types.IdentityType.getIdentityType(c),Identity:a.userIdentities[c]});return {UserIdentities:b}}}},IdentityAPI={HTTPCodes:HTTPCodes$1,/**
+     * Initiate a logout request to the mParticle server
+     * @method identify
+     * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
+     * @param {Function} [callback] A callback function that is called when the identify request completes
+     */identify:function identify(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"identify");if(d&&(c=d.getMPID()),e.valid){var f=IdentityRequest.createIdentityRequest(a,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.deviceId,mParticle.Store.context,c);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Identify,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Identify request sent to native sdk")):sendIdentityRequest$1(f,"identify",b,a,parseIdentityResponse,c):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
+     * Initiate a logout request to the mParticle server
+     * @method logout
+     * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
+     * @param {Function} [callback] A callback function that is called when the logout request completes
+     */logout:function logout(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"logout");if(d&&(c=d.getMPID()),e.valid){var f,g=IdentityRequest.createIdentityRequest(a,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.deviceId,mParticle.Store.context,c);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Logout,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Logout request sent to native sdk")):(sendIdentityRequest$1(g,"logout",b,a,parseIdentityResponse,c),f=ServerModel.createEventObject({messageType:Types.MessageType.Profile}),f.ProfileMessageType=Types.ProfileMessageType.Logout,mParticle.Store.activeForwarders.length&&mParticle.Store.activeForwarders.forEach(function(a){a.logOut&&a.logOut(f);})):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
+     * Initiate a login request to the mParticle server
+     * @method login
+     * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
+     * @param {Function} [callback] A callback function that is called when the login request completes
+     */login:function login(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"login");if(d&&(c=d.getMPID()),e.valid){var f=IdentityRequest.createIdentityRequest(a,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.deviceId,mParticle.Store.context,c);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Login,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Login request sent to native sdk")):sendIdentityRequest$1(f,"login",b,a,parseIdentityResponse,c):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
+     * Initiate a modify request to the mParticle server
+     * @method modify
+     * @param {Object} identityApiData The identityApiData object as indicated [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/README.md#1-customize-the-sdk)
+     * @param {Function} [callback] A callback function that is called when the modify request completes
+     */modify:function modify(a,b){var c,d=mParticle.Identity.getCurrentUser(),e=IdentityRequest.preProcessIdentityRequest(a,b,"modify");d&&(c=d.getMPID());var f=a&&a.userIdentities?a.userIdentities:{};if(e.valid){var g=IdentityRequest.createModifyIdentityRequest(d?d.getUserIdentities().userIdentities:{},f,Constants.platform,Constants.sdkVendor,Constants.sdkVersion,mParticle.Store.context);Helpers.canLog()?mParticle.Store.webviewBridgeEnabled?(NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Modify,JSON.stringify(IdentityRequest.convertToNative(a))),Helpers.invokeCallback(b,HTTPCodes$1.nativeIdentityRequest,"Modify request sent to native sdk")):sendIdentityRequest$1(g,"modify",b,a,parseIdentityResponse,c):(Helpers.invokeCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonLogEvent),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonLogEvent));}else Helpers.invokeCallback(b,HTTPCodes$1.validationIssue,e.error),mParticle.Logger.verbose(e);},/**
+     * Returns a user object with methods to interact with the current user
+     * @method getCurrentUser
+     * @return {Object} the current user object
+     */getCurrentUser:function getCurrentUser(){var a=mParticle.Store.mpid;return a?(a=mParticle.Store.mpid.slice(),mParticleUser(a,mParticle.Store.isLoggedIn)):mParticle.Store.webviewBridgeEnabled?mParticleUser():null},/**
+     * Returns a the user object associated with the mpid parameter or 'null' if no such
+     * user exists
+     * @method getUser
+     * @param {String} mpid of the desired user
+     * @return {Object} the user for  mpid
+     */getUser:function getUser(a){var b=Persistence.getPersistence();return b?b[a]&&!Constants.SDKv2NonMPIDCookieKeys.hasOwnProperty(a)?mParticleUser(a):null:null},/**
+     * Returns all users, including the current user and all previous users that are stored on the device.
+     * @method getUsers
+     * @return {Array} array of users
+     */getUsers:function getUsers(){var a=Persistence.getPersistence(),b=[];if(a)for(var c in a)Constants.SDKv2NonMPIDCookieKeys.hasOwnProperty(c)||b.push(mParticleUser(c));return b.sort(function(c,a){var b=c.getLastSeenTime()||0,d=a.getLastSeenTime()||0;return b>d?-1:1}),b},/**
+     * Initiate an alias request to the mParticle server
+     * @method aliasUsers
+     * @param {Object} aliasRequest  object representing an AliasRequest
+     * @param {Function} [callback] A callback function that is called when the aliasUsers request completes
+     */aliasUsers:function aliasUsers(a,b){var c;if(a.destinationMpid&&a.sourceMpid||(c=Messages$6.ValidationMessages.AliasMissingMpid),a.destinationMpid===a.sourceMpid&&(c=Messages$6.ValidationMessages.AliasNonUniqueMpid),a.startTime&&a.endTime||(c=Messages$6.ValidationMessages.AliasMissingTime),a.startTime>a.endTime&&(c=Messages$6.ValidationMessages.AliasStartBeforeEndTime),c)return mParticle.Logger.warning(c),void Helpers.invokeAliasCallback(b,HTTPCodes$1.validationIssue,c);if(!Helpers.canLog())Helpers.invokeAliasCallback(b,HTTPCodes$1.loggingDisabledOrMissingAPIKey,Messages$6.InformationMessages.AbandonAliasUsers),mParticle.Logger.verbose(Messages$6.InformationMessages.AbandonAliasUsers);else if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.Alias,JSON.stringify(IdentityRequest.convertAliasToNative(a))),Helpers.invokeAliasCallback(b,HTTPCodes$1.nativeIdentityRequest,"Alias request sent to native sdk");else{mParticle.Logger.verbose(Messages$6.InformationMessages.StartingAliasRequest+": "+a.sourceMpid+" -> "+a.destinationMpid);var d=IdentityRequest.createAliasNetworkRequest(a);ApiClient.sendAliasRequest(d,b);}},/**
       Create a default AliasRequest for 2 MParticleUsers. This will construct the request
       using the sourceUser's firstSeenTime as the startTime, and its lastSeenTime as the endTime.
      
@@ -2929,93 +3223,102 @@ var Messages$6=Constants.Messages,Validators$2=Helpers.Validators,HTTPCodes$1=Co
       after applying this adjustment it will be impossible to create an aliasRequest passes the aliasUsers() 
       validation that the startTime must be less than the endTime 
      */createAliasRequest:function createAliasRequest(a,b){try{if(!b||!a)return mParticle.Logger.error("'destinationUser' and 'sourceUser' must both be present"),null;var c=a.getFirstSeenTime();c||mParticle.Identity.getUsers().forEach(function(a){a.getFirstSeenTime()&&(!c||a.getFirstSeenTime()<c)&&(c=a.getFirstSeenTime());});var d=new Date().getTime()-1e3*(60*(60*(24*mParticle.Store.SDKConfig.aliasMaxWindow))),e=a.getLastSeenTime()||new Date().getTime();return c<d&&(c=d,e<c&&mParticle.Logger.warning("Source User has not been seen in the last "+mParticle.Store.SDKConfig.maxAliasWindow+" days, Alias Request will likely fail")),{destinationMpid:b.getMPID(),sourceMpid:a.getMPID(),startTime:c,endTime:e}}catch(a){return mParticle.Logger.error("There was a problem with creating an alias request: "+a),null}}};/**
-* Invoke these methods on the mParticle.Identity object.
-* Example: mParticle.Identity.getCurrentUser().
-* @class mParticle.Identity
-*/ /**
-* Invoke these methods on the mParticle.Identity.getCurrentUser() object.
-* Example: mParticle.Identity.getCurrentUser().getAllUserAttributes()
-* @class mParticle.Identity.getCurrentUser()
-*/function mParticleUser(a,b){return {/**
-        * Get user identities for current user
-        * @method getUserIdentities
-        * @return {Object} an object with userIdentities as its key
-        */getUserIdentities:function getUserIdentities(){var b={},c=Persistence.getUserIdentities(a);for(var d in c)c.hasOwnProperty(d)&&(b[Types.IdentityType.getIdentityName(Helpers.parseNumber(d))]=c[d]);return {userIdentities:b}},/**
-        * Get the MPID of the current user
-        * @method getMPID
-        * @return {String} the current user MPID as a string
-        */getMPID:function getMPID(){return a},/**
-        * Sets a user tag
-        * @method setUserTag
-        * @param {String} tagName
-        */setUserTag:function setUserTag(a){return Validators$2.isValidKeyValue(a)?void this.setUserAttribute(a,null):void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey)},/**
-        * Removes a user tag
-        * @method removeUserTag
-        * @param {String} tagName
-        */removeUserTag:function removeUserTag(a){return Validators$2.isValidKeyValue(a)?void this.removeUserAttribute(a):void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey)},/**
-        * Sets a user attribute
-        * @method setUserAttribute
-        * @param {String} key
-        * @param {String} value
-        */setUserAttribute:function setUserAttribute(b,c){var d,e;if(mParticle.sessionManager.resetSessionTimer(),Helpers.canLog()){if(!Validators$2.isValidAttributeValue(c))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadAttribute);if(!Validators$2.isValidKeyValue(b))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey);if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetUserAttribute,JSON.stringify({key:b,value:c}));else{d=Persistence.getPersistence(),e=this.getAllUserAttributes();var f=Helpers.findKeyInObject(e,b);f&&delete e[f],e[b]=c,d&&d[a]&&(d[a].ua=e,Persistence.saveCookies(d,a)),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities(),ApiClient.prepareForwardingStats),Forwarders.callSetUserAttributeOnForwarders(b,c);}}},/**
-        * Set multiple user attributes
-        * @method setUserAttributes
-        * @param {Object} user attribute object with keys of the attribute type, and value of the attribute value
-        */setUserAttributes:function setUserAttributes(a){if(mParticle.sessionManager.resetSessionTimer(),!Helpers.isObject(a))mParticle.Logger.error("Must pass an object into setUserAttributes. You passed a "+_typeof_1(a));else if(Helpers.canLog())for(var b in a)a.hasOwnProperty(b)&&this.setUserAttribute(b,a[b]);},/**
-        * Removes a specific user attribute
-        * @method removeUserAttribute
-        * @param {String} key
-        */removeUserAttribute:function removeUserAttribute(b){var c,d;if(mParticle.sessionManager.resetSessionTimer(),!Validators$2.isValidKeyValue(b))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey);if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.RemoveUserAttribute,JSON.stringify({key:b,value:null}));else{c=Persistence.getPersistence(),d=this.getAllUserAttributes();var e=Helpers.findKeyInObject(d,b);e&&(b=e),delete d[b],c&&c[a]&&(c[a].ua=d,Persistence.saveCookies(c,a)),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities(),ApiClient.prepareForwardingStats),Forwarders.applyToForwarders("removeUserAttribute",b);}},/**
-        * Sets a list of user attributes
-        * @method setUserAttributeList
-        * @param {String} key
-        * @param {Array} value an array of values
-        */setUserAttributeList:function setUserAttributeList(b,c){var d,e;if(mParticle.sessionManager.resetSessionTimer(),!Validators$2.isValidKeyValue(b))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey);if(!Array.isArray(c))return void mParticle.Logger.error("The value you passed in to setUserAttributeList must be an array. You passed in a "+_typeof_1(c));var f=c.slice();if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetUserAttributeList,JSON.stringify({key:b,value:f}));else{d=Persistence.getPersistence(),e=this.getAllUserAttributes();var g=Helpers.findKeyInObject(e,b);g&&delete e[g],e[b]=f,d&&d[a]&&(d[a].ua=e,Persistence.saveCookies(d,a)),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities(),ApiClient.prepareForwardingStats),Forwarders.callSetUserAttributeOnForwarders(b,f);}},/**
-        * Removes all user attributes
-        * @method removeAllUserAttributes
-        */removeAllUserAttributes:function removeAllUserAttributes(){var b,c;if(mParticle.sessionManager.resetSessionTimer(),mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.RemoveAllUserAttributes);else{if(b=Persistence.getPersistence(),c=this.getAllUserAttributes(),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities()),c)for(var d in c)c.hasOwnProperty(d)&&Forwarders.applyToForwarders("removeUserAttribute",d);b&&b[a]&&(b[a].ua={},Persistence.saveCookies(b,a));}},/**
-        * Returns all user attribute keys that have values that are arrays
-        * @method getUserAttributesLists
-        * @return {Object} an object of only keys with array values. Example: { attr1: [1, 2, 3], attr2: ['a', 'b', 'c'] }
-        */getUserAttributesLists:function getUserAttributesLists(){var a,b={};for(var c in a=this.getAllUserAttributes(),a)a.hasOwnProperty(c)&&Array.isArray(a[c])&&(b[c]=a[c].slice());return b},/**
-        * Returns all user attributes
-        * @method getAllUserAttributes
-        * @return {Object} an object of all user attributes. Example: { attr1: 'value1', attr2: ['a', 'b', 'c'] }
-        */getAllUserAttributes:function getAllUserAttributes(){var b={},c=Persistence.getAllUserAttributes(a);if(c)for(var d in c)c.hasOwnProperty(d)&&(b[d]=Array.isArray(c[d])?c[d].slice():c[d]);return b},/**
-        * Returns the cart object for the current user
-        * @method getCart
-        * @return a cart object
-        */getCart:function getCart(){return mParticleUserCart(a)},/**
-        * Returns the Consent State stored locally for this user.
-        * @method getConsentState
-        * @return a ConsentState object
-        */getConsentState:function getConsentState(){return Persistence.getConsentState(a)},/**
-        * Sets the Consent State stored locally for this user.
-        * @method setConsentState
-        * @param {Object} consent state
-        */setConsentState:function setConsentState(b){Persistence.saveUserConsentStateToCookies(a,b),Forwarders.initForwarders(this.getUserIdentities().userIdentities),ApiClient.prepareForwardingStats;},isLoggedIn:function isLoggedIn(){return b},getLastSeenTime:function getLastSeenTime(){return Persistence.getLastSeenTime(a)},getFirstSeenTime:function getFirstSeenTime(){return Persistence.getFirstSeenTime(a)}}}/**
-* Invoke these methods on the mParticle.Identity.getCurrentUser().getCart() object.
-* Example: mParticle.Identity.getCurrentUser().getCart().add(...);
-* @class mParticle.Identity.getCurrentUser().getCart()
-*/function mParticleUserCart(a){return {/**
-        * Adds a cart product to the user cart
-        * @method add
-        * @param {Object} product the product
-        * @param {Boolean} [logEvent] a boolean to log adding of the cart object. If blank, no logging occurs.
-        */add:function add(b,c){var d,e,f;if(f=Array.isArray(b)?b.slice():[b],f.forEach(function(a){a.Attributes=Helpers.sanitizeAttributes(a.Attributes);}),mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.AddToCart,JSON.stringify(f));else{mParticle.sessionManager.resetSessionTimer(),e=Persistence.getUserProductsFromLS(a),e=e.concat(f),!0===c&&Events.logProductActionEvent(Types.ProductActionType.AddToCart,f);e.length>mParticle.Store.SDKConfig.maxProducts&&(mParticle.Logger.verbose("The cart contains "+e.length+" items. Only "+mParticle.Store.SDKConfig.maxProducts+" can currently be saved in cookies."),e=e.slice(-mParticle.Store.SDKConfig.maxProducts)),d=Persistence.getAllUserProductsFromLS(),d[a].cp=e,Persistence.setCartProducts(d);}},/**
-        * Removes a cart product from the current user cart
-        * @method remove
-        * @param {Object} product the product
-        * @param {Boolean} [logEvent] a boolean to log adding of the cart object. If blank, no logging occurs.
-        */remove:function remove(b,c){var d,e,f=-1,g=null;if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.RemoveFromCart,JSON.stringify(b));else{mParticle.sessionManager.resetSessionTimer(),e=Persistence.getUserProductsFromLS(a),e&&(e.forEach(function(a,c){a.Sku===b.Sku&&(f=c,g=a);}),-1<f&&(e.splice(f,1),!0===c&&Events.logProductActionEvent(Types.ProductActionType.RemoveFromCart,g)));d=Persistence.getAllUserProductsFromLS(),d[a].cp=e,Persistence.setCartProducts(d);}},/**
-        * Clears the user's cart
-        * @method clear
-        */clear:function clear(){var b;mParticle.Store.webviewBridgeEnabled?NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.ClearCart):(mParticle.sessionManager.resetSessionTimer(),b=Persistence.getAllUserProductsFromLS(),b&&b[a]&&b[a].cp&&(b[a].cp=[],b[a].cp=[],Persistence.setCartProducts(b)));},/**
-        * Returns all cart products
-        * @method getCartProducts
-        * @return {Array} array of cart products
-        */getCartProducts:function getCartProducts(){return Persistence.getCartProducts(a)}}}function parseIdentityResponse(a,b,c,d,e){var f,g,h,i=mParticle.Identity.getCurrentUser(),j={},k=i?i.getUserIdentities().userIdentities:{};for(var l in k)j[Types.IdentityType.getIdentityType(l)]=k[l];var m={};mParticle.Store.identityCallInFlight=!1;try{if(mParticle.Logger.verbose("Parsing \""+e+"\" identity response from server"),a.responseText&&(g=JSON.parse(a.responseText),g.hasOwnProperty("is_logged_in")&&(mParticle.Store.isLoggedIn=g.is_logged_in)),200===a.status){if("modify"===e)m=IdentityRequest.modifyUserIdentities(j,d.userIdentities),Persistence.saveUserIdentitiesToCookies(i.getMPID(),m);else{//if there is any previous migration data
-if(g=JSON.parse(a.responseText),mParticle.Logger.verbose("Successfully parsed Identity Response"),(!i||i.getMPID()&&g.mpid&&g.mpid!==i.getMPID())&&(mParticle.Store.mpid=g.mpid,i&&Persistence.setLastSeenTime(b),Persistence.setFirstSeenTime(g.mpid)),"identify"==e&&i&&g.mpid===i.getMPID()&&Persistence.setFirstSeenTime(g.mpid),h=mParticle.Store.currentSessionMPIDs.indexOf(g.mpid),mParticle.Store.sessionId&&g.mpid&&b!==g.mpid&&0>h&&mParticle.Store.currentSessionMPIDs.push(g.mpid),-1<h&&(mParticle.Store.currentSessionMPIDs=mParticle.Store.currentSessionMPIDs.slice(0,h).concat(mParticle.Store.currentSessionMPIDs.slice(h+1,mParticle.Store.currentSessionMPIDs.length)),mParticle.Store.currentSessionMPIDs.push(g.mpid)),Persistence.saveUserIdentitiesToCookies(g.mpid,m),cookieSyncManager.attemptCookieSync(b,g.mpid),checkIdentitySwap(b,g.mpid,mParticle.Store.currentSessionMPIDs),Object.keys(mParticle.Store.migrationData).length){m=mParticle.Store.migrationData.userIdentities||{};var n=mParticle.Store.migrationData.userAttributes||{};Persistence.saveUserAttributesToCookies(g.mpid,n);}else d&&d.userIdentities&&Object.keys(d.userIdentities).length&&(m=IdentityRequest.modifyUserIdentities(j,d.userIdentities));Persistence.saveUserIdentitiesToCookies(g.mpid,m),Persistence.update(),Persistence.findPrevCookiesBasedOnUI(d),mParticle.Store.context=g.context||mParticle.Store.context;}if(f=IdentityAPI.getCurrentUser(),d&&d.onUserAlias&&Helpers.Validators.isFunction(d.onUserAlias))try{mParticle.Logger.warning("Deprecated function onUserAlias will be removed in future releases"),d.onUserAlias(i,f);}catch(a){mParticle.Logger.error("There was an error with your onUserAlias function - "+a);}var o=Persistence.getCookie()||Persistence.getLocalStorage();f&&(Persistence.storeDataInMemory(o,f.getMPID()),(!i||f.getMPID()!==i.getMPID()||i.isLoggedIn()!==f.isLoggedIn())&&Forwarders.initForwarders(f.getUserIdentities().userIdentities,ApiClient.prepareForwardingStats),Forwarders.setForwarderUserIdentities(f.getUserIdentities().userIdentities),Forwarders.setForwarderOnIdentityComplete(f,e),Forwarders.setForwarderOnUserIdentified(f,e)),ApiClient.processQueuedEvents();}c?0===a.status?Helpers.invokeCallback(c,HTTPCodes$1.noHttpCoverage,g||null,f):Helpers.invokeCallback(c,a.status,g||null,f):g&&g.errors&&g.errors.length&&mParticle.Logger.error("Received HTTP response code of "+a.status+" - "+g.errors[0].message);}catch(b){c&&Helpers.invokeCallback(c,a.status,g||null),mParticle.Logger.error("Error parsing JSON response from Identity server: "+b);}}var Identity = {checkIdentitySwap:checkIdentitySwap,IdentityRequest:IdentityRequest,IdentityAPI:IdentityAPI,mParticleUser:mParticleUser,mParticleUserCart:mParticleUserCart};
+ * Invoke these methods on the mParticle.Identity object.
+ * Example: mParticle.Identity.getCurrentUser().
+ * @class mParticle.Identity
+ */ /**
+ * Invoke these methods on the mParticle.Identity.getCurrentUser() object.
+ * Example: mParticle.Identity.getCurrentUser().getAllUserAttributes()
+ * @class mParticle.Identity.getCurrentUser()
+ */function mParticleUser(a,b){return {/**
+         * Get user identities for current user
+         * @method getUserIdentities
+         * @return {Object} an object with userIdentities as its key
+         */getUserIdentities:function getUserIdentities(){var b={},c=Persistence.getUserIdentities(a);for(var d in c)c.hasOwnProperty(d)&&(b[Types.IdentityType.getIdentityName(Helpers.parseNumber(d))]=c[d]);return {userIdentities:b}},/**
+         * Get the MPID of the current user
+         * @method getMPID
+         * @return {String} the current user MPID as a string
+         */getMPID:function getMPID(){return a},/**
+         * Sets a user tag
+         * @method setUserTag
+         * @param {String} tagName
+         */setUserTag:function setUserTag(a){return Validators$2.isValidKeyValue(a)?void this.setUserAttribute(a,null):void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey)},/**
+         * Removes a user tag
+         * @method removeUserTag
+         * @param {String} tagName
+         */removeUserTag:function removeUserTag(a){return Validators$2.isValidKeyValue(a)?void this.removeUserAttribute(a):void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey)},/**
+         * Sets a user attribute
+         * @method setUserAttribute
+         * @param {String} key
+         * @param {String} value
+         */setUserAttribute:function setUserAttribute(b,c){var d,e,f,g;if(mParticle.sessionManager.resetSessionTimer(),Helpers.canLog()){if(!Validators$2.isValidAttributeValue(c))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadAttribute);if(!Validators$2.isValidKeyValue(b))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey);if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetUserAttribute,JSON.stringify({key:b,value:c}));else{d=Persistence.getPersistence(),e=this.getAllUserAttributes();var h=Helpers.findKeyInObject(e,b);h?(g=!1,f=e[h],delete e[h]):g=!0,sendUserAttributeChangeEvent(b,c,f,g,!1),e[b]=c,d&&d[a]&&(d[a].ua=e,Persistence.saveCookies(d,a)),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities(),ApiClient.prepareForwardingStats),Forwarders.callSetUserAttributeOnForwarders(b,c);}}},/**
+         * Set multiple user attributes
+         * @method setUserAttributes
+         * @param {Object} user attribute object with keys of the attribute type, and value of the attribute value
+         */setUserAttributes:function setUserAttributes(a){if(mParticle.sessionManager.resetSessionTimer(),!Helpers.isObject(a))mParticle.Logger.error("Must pass an object into setUserAttributes. You passed a "+_typeof_1(a));else if(Helpers.canLog())for(var b in a)a.hasOwnProperty(b)&&this.setUserAttribute(b,a[b]);},/**
+         * Removes a specific user attribute
+         * @method removeUserAttribute
+         * @param {String} key
+         */removeUserAttribute:function removeUserAttribute(b){var c,d;if(mParticle.sessionManager.resetSessionTimer(),!Validators$2.isValidKeyValue(b))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey);if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.RemoveUserAttribute,JSON.stringify({key:b,value:null}));else{c=Persistence.getPersistence(),d=this.getAllUserAttributes(),sendUserAttributeChangeEvent(b,null,d[b],!1,!0);var e=Helpers.findKeyInObject(d,b);e&&(b=e),delete d[b],c&&c[a]&&(c[a].ua=d,Persistence.saveCookies(c,a)),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities(),ApiClient.prepareForwardingStats),Forwarders.applyToForwarders("removeUserAttribute",b);}},/**
+         * Sets a list of user attributes
+         * @method setUserAttributeList
+         * @param {String} key
+         * @param {Array} value an array of values
+         */setUserAttributeList:function setUserAttributeList(b,c){var d,e,f,g,h;if(mParticle.sessionManager.resetSessionTimer(),!Validators$2.isValidKeyValue(b))return void mParticle.Logger.error(Messages$6.ErrorMessages.BadKey);if(!Array.isArray(c))return void mParticle.Logger.error("The value you passed in to setUserAttributeList must be an array. You passed in a "+("undefined"==typeof value?"undefined":_typeof_1(value)));var j=c.slice();if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetUserAttributeList,JSON.stringify({key:b,value:j}));else{d=Persistence.getPersistence(),e=this.getAllUserAttributes();var k=Helpers.findKeyInObject(e,b);if(k?(g=!1,f=e[k],delete e[k]):g=!0,ApiClient.shouldEnableBatching()){// If the new attributeList length is different previous, then there is a change event.
+// Loop through new attributes list, see if they are all in the same index as previous user attributes list
+// If there are any changes, break, and immediately send a userAttributeChangeEvent with full array as a value
+if(!f||!Array.isArray(f))h=!0;else if(c.length!==f.length)h=!0;else for(var l=0;l<c.length;l++)if(f[l]!==c[l]){h=!0;break}h&&sendUserAttributeChangeEvent(b,c,f,g,!1);}e[b]=j,d&&d[a]&&(d[a].ua=e,Persistence.saveCookies(d,a)),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities(),ApiClient.prepareForwardingStats),Forwarders.callSetUserAttributeOnForwarders(b,j);}},/**
+         * Removes all user attributes
+         * @method removeAllUserAttributes
+         */removeAllUserAttributes:function removeAllUserAttributes(){var a;if(mParticle.sessionManager.resetSessionTimer(),mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.RemoveAllUserAttributes);else if(a=this.getAllUserAttributes(),Forwarders.initForwarders(IdentityAPI.getCurrentUser().getUserIdentities(),ApiClient.prepareForwardingStats),a)for(var b in a)a.hasOwnProperty(b)&&Forwarders.applyToForwarders("removeUserAttribute",b),this.removeUserAttribute(b);},/**
+         * Returns all user attribute keys that have values that are arrays
+         * @method getUserAttributesLists
+         * @return {Object} an object of only keys with array values. Example: { attr1: [1, 2, 3], attr2: ['a', 'b', 'c'] }
+         */getUserAttributesLists:function getUserAttributesLists(){var a,b={};for(var c in a=this.getAllUserAttributes(),a)a.hasOwnProperty(c)&&Array.isArray(a[c])&&(b[c]=a[c].slice());return b},/**
+         * Returns all user attributes
+         * @method getAllUserAttributes
+         * @return {Object} an object of all user attributes. Example: { attr1: 'value1', attr2: ['a', 'b', 'c'] }
+         */getAllUserAttributes:function getAllUserAttributes(){var b={},c=Persistence.getAllUserAttributes(a);if(c)for(var d in c)c.hasOwnProperty(d)&&(b[d]=Array.isArray(c[d])?c[d].slice():c[d]);return b},/**
+         * Returns the cart object for the current user
+         * @method getCart
+         * @return a cart object
+         */getCart:function getCart(){return mParticleUserCart(a)},/**
+         * Returns the Consent State stored locally for this user.
+         * @method getConsentState
+         * @return a ConsentState object
+         */getConsentState:function getConsentState(){return Persistence.getConsentState(a)},/**
+         * Sets the Consent State stored locally for this user.
+         * @method setConsentState
+         * @param {Object} consent state
+         */setConsentState:function setConsentState(b){Persistence.saveUserConsentStateToCookies(a,b),Forwarders.initForwarders(this.getUserIdentities().userIdentities,ApiClient.prepareForwardingStats);},isLoggedIn:function isLoggedIn(){return b},getLastSeenTime:function getLastSeenTime(){return Persistence.getLastSeenTime(a)},getFirstSeenTime:function getFirstSeenTime(){return Persistence.getFirstSeenTime(a)}}}/**
+ * Invoke these methods on the mParticle.Identity.getCurrentUser().getCart() object.
+ * Example: mParticle.Identity.getCurrentUser().getCart().add(...);
+ * @class mParticle.Identity.getCurrentUser().getCart()
+ */function mParticleUserCart(a){return {/**
+         * Adds a cart product to the user cart
+         * @method add
+         * @param {Object} product the product
+         * @param {Boolean} [logEvent] a boolean to log adding of the cart object. If blank, no logging occurs.
+         */add:function add(b,c){var d,e,f;if(f=Array.isArray(b)?b.slice():[b],f.forEach(function(a){a.Attributes=Helpers.sanitizeAttributes(a.Attributes);}),mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.AddToCart,JSON.stringify(f));else{mParticle.sessionManager.resetSessionTimer(),e=Persistence.getUserProductsFromLS(a),e=e.concat(f),!0===c&&Events.logProductActionEvent(Types.ProductActionType.AddToCart,f);e.length>mParticle.Store.SDKConfig.maxProducts&&(mParticle.Logger.verbose("The cart contains "+e.length+" items. Only "+mParticle.Store.SDKConfig.maxProducts+" can currently be saved in cookies."),e=e.slice(-mParticle.Store.SDKConfig.maxProducts)),d=Persistence.getAllUserProductsFromLS(),d[a].cp=e,Persistence.setCartProducts(d);}},/**
+         * Removes a cart product from the current user cart
+         * @method remove
+         * @param {Object} product the product
+         * @param {Boolean} [logEvent] a boolean to log adding of the cart object. If blank, no logging occurs.
+         */remove:function remove(b,c){var d,e,f=-1,g=null;if(mParticle.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.RemoveFromCart,JSON.stringify(b));else{mParticle.sessionManager.resetSessionTimer(),e=Persistence.getUserProductsFromLS(a),e&&(e.forEach(function(a,c){a.Sku===b.Sku&&(f=c,g=a);}),-1<f&&(e.splice(f,1),!0===c&&Events.logProductActionEvent(Types.ProductActionType.RemoveFromCart,g)));d=Persistence.getAllUserProductsFromLS(),d[a].cp=e,Persistence.setCartProducts(d);}},/**
+         * Clears the user's cart
+         * @method clear
+         */clear:function clear(){var b;mParticle.Store.webviewBridgeEnabled?NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.ClearCart):(mParticle.sessionManager.resetSessionTimer(),b=Persistence.getAllUserProductsFromLS(),b&&b[a]&&b[a].cp&&(b[a].cp=[],b[a].cp=[],Persistence.setCartProducts(b)));},/**
+         * Returns all cart products
+         * @method getCartProducts
+         * @return {Array} array of cart products
+         */getCartProducts:function getCartProducts(){return Persistence.getCartProducts(a)}}}function parseIdentityResponse(a,b,c,d,e){var f,g,h,i=mParticle.Identity.getCurrentUser(),j={},k=i?i.getUserIdentities().userIdentities:{};for(var l in k)j[Types.IdentityType.getIdentityType(l)]=k[l];var m={};mParticle.Store.identityCallInFlight=!1;try{if(mParticle.Logger.verbose("Parsing \""+e+"\" identity response from server"),a.responseText&&(g=JSON.parse(a.responseText),sendUserIdentityChange(d,e,g.mpid),g.hasOwnProperty("is_logged_in")&&(mParticle.Store.isLoggedIn=g.is_logged_in)),200===a.status){if("modify"===e)m=IdentityRequest.modifyUserIdentities(j,d.userIdentities),Persistence.saveUserIdentitiesToCookies(i.getMPID(),m);else{//if there is any previous migration data
+if(g=JSON.parse(a.responseText),mParticle.Logger.verbose("Successfully parsed Identity Response"),(!i||i.getMPID()&&g.mpid&&g.mpid!==i.getMPID())&&(mParticle.Store.mpid=g.mpid,i&&Persistence.setLastSeenTime(b),Persistence.setFirstSeenTime(g.mpid)),"identify"==e&&i&&g.mpid===i.getMPID()&&Persistence.setFirstSeenTime(g.mpid),h=mParticle.Store.currentSessionMPIDs.indexOf(g.mpid),mParticle.Store.sessionId&&g.mpid&&b!==g.mpid&&0>h&&mParticle.Store.currentSessionMPIDs.push(g.mpid),-1<h&&(mParticle.Store.currentSessionMPIDs=mParticle.Store.currentSessionMPIDs.slice(0,h).concat(mParticle.Store.currentSessionMPIDs.slice(h+1,mParticle.Store.currentSessionMPIDs.length)),mParticle.Store.currentSessionMPIDs.push(g.mpid)),Persistence.saveUserIdentitiesToCookies(g.mpid,m),cookieSyncManager.attemptCookieSync(b,g.mpid),checkIdentitySwap(b,g.mpid,mParticle.Store.currentSessionMPIDs),Object.keys(mParticle.Store.migrationData).length){m=mParticle.Store.migrationData.userIdentities||{};var n=mParticle.Store.migrationData.userAttributes||{};Persistence.saveUserAttributesToCookies(g.mpid,n);}else d&&d.userIdentities&&Object.keys(d.userIdentities).length&&(m=IdentityRequest.modifyUserIdentities(j,d.userIdentities));Persistence.saveUserIdentitiesToCookies(g.mpid,m),Persistence.update(),Persistence.findPrevCookiesBasedOnUI(d),mParticle.Store.context=g.context||mParticle.Store.context;}if(f=IdentityAPI.getCurrentUser(),d&&d.onUserAlias&&Helpers.Validators.isFunction(d.onUserAlias))try{mParticle.Logger.warning("Deprecated function onUserAlias will be removed in future releases"),d.onUserAlias(i,f);}catch(a){mParticle.Logger.error("There was an error with your onUserAlias function - "+a);}var o=Persistence.getCookie()||Persistence.getLocalStorage();f&&(Persistence.storeDataInMemory(o,f.getMPID()),(!i||f.getMPID()!==i.getMPID()||i.isLoggedIn()!==f.isLoggedIn())&&Forwarders.initForwarders(f.getUserIdentities().userIdentities,ApiClient.prepareForwardingStats),Forwarders.setForwarderUserIdentities(f.getUserIdentities().userIdentities),Forwarders.setForwarderOnIdentityComplete(f,e),Forwarders.setForwarderOnUserIdentified(f,e)),ApiClient.processQueuedEvents();}c?0===a.status?Helpers.invokeCallback(c,HTTPCodes$1.noHttpCoverage,g||null,f):Helpers.invokeCallback(c,a.status,g||null,f):g&&g.errors&&g.errors.length&&mParticle.Logger.error("Received HTTP response code of "+a.status+" - "+g.errors[0].message);}catch(b){c&&Helpers.invokeCallback(c,a.status,g||null),mParticle.Logger.error("Error parsing JSON response from Identity server: "+b);}}// send a user identity change request on identify, login, logout, modify when any values change.
+// compare what identities exist vs what it previously was for the specific user if they were in memory before.
+// if it's the first time the user is logging in, send a user identity change request with created_this_batch = true
+// created_this_batch is always false for old user
+function sendUserIdentityChange(a,b,c){var d,e,f;if(ApiClient.shouldEnableBatching()&&(c||"modify"===b)){d="modify"===b?IdentityAPI.getCurrentUser():IdentityAPI.getUser(c);var g=a.userIdentities;// if there is not a user in memory with this mpid, then it is a new user, and we send a user identity
+// change for each identity on the identity api request
+if(d)e=d.getUserIdentities()?d.getUserIdentities().userIdentities:{};else{for(var h in g)f=createUserIdentityChange(h,g[h],null,!0),sendEventToServer$2(f);return}for(h in g)if(e[h]!==g[h]){var i=!e[h];f=createUserIdentityChange(h,g[h],e[h],i),sendEventToServer$2(f);}}}function createUserIdentityChange(a,b,c,d){var e;return e=ServerModel.createEventObject({messageType:Types.MessageType.UserIdentityChange,userIdentityChanges:{New:{IdentityType:a,Identity:b,CreatedThisBatch:d},Old:{IdentityType:a,Identity:c,CreatedThisBatch:!1}}}),e}function sendUserAttributeChangeEvent(a,b,c,d,e){if(ApiClient.shouldEnableBatching()){var f=createUserAttributeChange(a,b,c,d,e);f&&sendEventToServer$2(f);}}function createUserAttributeChange(a,b,c,d,e){c||(c=null);var f;return b!==c&&(f=ServerModel.createEventObject({messageType:Types.MessageType.UserAttributeChange,userAttributeChanges:{UserAttributeName:a,New:b,Old:c||null,Deleted:e,IsNewAttribute:d}})),f}var Identity = {checkIdentitySwap:checkIdentitySwap,IdentityRequest:IdentityRequest,IdentityAPI:IdentityAPI,mParticleUser:mParticleUser,mParticleUserCart:mParticleUserCart};
 
 var IdentityAPI$1=Identity.IdentityAPI,Messages$7=Constants.Messages,logEvent$1=Events.logEvent;function initialize(){if(mParticle.Store.sessionId){var a=6e4*mParticle.Store.SDKConfig.sessionTimeout;if(new Date>new Date(mParticle.Store.dateLastEventSent.getTime()+a))endSession(),startNewSession();else{var b=Persistence.getPersistence();b&&!b.cu&&(IdentityAPI$1.identify(mParticle.Store.SDKConfig.identifyRequest,mParticle.Store.SDKConfig.identityCallback),mParticle.Store.identifyCalled=!0,mParticle.Store.SDKConfig.identityCallback=null);}}else startNewSession();}function getSession(){return mParticle.Store.sessionId}function startNewSession(){if(mParticle.Logger.verbose(Messages$7.InformationMessages.StartingNewSession),Helpers.canLog()){mParticle.Store.sessionId=Helpers.generateUniqueId().toUpperCase();var a=mParticle.Identity.getCurrentUser(),b=a?a.getMPID():null;if(b&&(mParticle.Store.currentSessionMPIDs=[b]),!mParticle.Store.sessionStartDate){var c=new Date;mParticle.Store.sessionStartDate=c,mParticle.Store.dateLastEventSent=c;}setSessionTimer(),mParticle.Store.identifyCalled||(IdentityAPI$1.identify(mParticle.Store.SDKConfig.identifyRequest,mParticle.Store.SDKConfig.identityCallback),mParticle.Store.identifyCalled=!0,mParticle.Store.SDKConfig.identityCallback=null),logEvent$1({messageType:Types.MessageType.SessionStart});}else mParticle.Logger.verbose(Messages$7.InformationMessages.AbandonStartSession);}function endSession(a){if(mParticle.Logger.verbose(Messages$7.InformationMessages.StartingEndSession),a)logEvent$1({messageType:Types.MessageType.SessionEnd}),mParticle.Store.sessionId=null,mParticle.Store.dateLastEventSent=null,mParticle.Store.sessionAttributes={},Persistence.update();else if(Helpers.canLog()){var b,c,d;if(c=Persistence.getCookie()||Persistence.getLocalStorage(),!c)return;if(c.gs&&!c.gs.sid)return void mParticle.Logger.verbose(Messages$7.InformationMessages.NoSessionToEnd);// sessionId is not equal to cookies.sid if cookies.sid is changed in another tab
 if(c.gs.sid&&mParticle.Store.sessionId!==c.gs.sid&&(mParticle.Store.sessionId=c.gs.sid),c.gs&&c.gs.les){b=6e4*mParticle.Store.SDKConfig.sessionTimeout;var e=new Date().getTime();d=e-c.gs.les,d<b?setSessionTimer():(logEvent$1({messageType:Types.MessageType.SessionEnd}),mParticle.Store.sessionId=null,mParticle.Store.dateLastEventSent=null,mParticle.Store.sessionStartDate=null,mParticle.Store.sessionAttributes={},Persistence.update());}}else mParticle.Logger.verbose(Messages$7.InformationMessages.AbandonEndSession);}function setSessionTimer(){var a=6e4*mParticle.Store.SDKConfig.sessionTimeout;mParticle.Store.globalTimer=window.setTimeout(function(){endSession();},a);}function resetSessionTimer(){mParticle.Store.webviewBridgeEnabled||(!mParticle.Store.sessionId&&startNewSession(),clearSessionTimeout(),setSessionTimer()),startNewSessionIfNeeded();}function clearSessionTimeout(){clearTimeout(mParticle.Store.globalTimer);}function startNewSessionIfNeeded(){if(!mParticle.Store.webviewBridgeEnabled){var a=Persistence.getCookie()||Persistence.getLocalStorage();!mParticle.Store.sessionId&&a&&(a.sid?mParticle.Store.sessionId=a.sid:startNewSession());}}var SessionManager = {initialize:initialize,getSession:getSession,startNewSession:startNewSession,endSession:endSession,setSessionTimer:setSessionTimer,resetSessionTimer:resetSessionTimer,clearSessionTimeout:clearSessionTimeout};
@@ -3039,248 +3342,249 @@ if((d.cp||d.pb)&&!d.mpid)return b=Persistence.getCookie(),b?(migrateProductsFrom
 function startForwardingStatsTimer(){mParticle._forwardingStatsTimer=setInterval(function(){prepareAndSendForwardingStatsBatch();},mParticle.Store.SDKConfig.forwarderStatsTimeout);}function prepareAndSendForwardingStatsBatch(){var a=Forwarders.getForwarderStatsQueue(),b=Persistence.forwardingStatsBatches.uploadsTable,c=Date.now();for(var d in a.length&&(b[c]={uploading:!1,data:a},Forwarders.setForwarderStatsQueue([])),b)(function(a){if(b.hasOwnProperty(a)&&!1===b[a].uploading){var c=function(){4===d.readyState&&(200===d.status||202===d.status?(mParticle.Logger.verbose("Successfully sent  "+d.statusText+" from server"),delete b[a]):"4"===d.status.toString()[0]?429!==d.status&&delete b[a]:b[a].uploading=!1);},d=Helpers.createXHR(c),e=b[a].data;b[a].uploading=!0,ApiClient.sendBatchForwardingStatsToServer(e,d);}})(d);}
 
 var getDeviceId$1=Persistence.getDeviceId,Messages$8=Constants.Messages,Validators$4=Helpers.Validators,mParticleUser$1=Identity.mParticleUser,IdentityAPI$2=Identity.IdentityAPI,mParticleUserCart$1=Identity.mParticleUserCart,HTTPCodes$2=Constants.HTTPCodes;Array.prototype.forEach||(Array.prototype.forEach=Polyfill.forEach),Array.prototype.map||(Array.prototype.map=Polyfill.map),Array.prototype.filter||(Array.prototype.filter=Polyfill.filter),Array.isArray||(Array.prototype.isArray=Polyfill.isArray);/**
-* Invoke these methods on the mParticle object.
-* Example: mParticle.endSession()
-*
-* @class mParticle
-*/var mParticle$1={config:window.mParticle?window.mParticle.config:{},Store:{},getDeviceId:getDeviceId$1,generateHash:Helpers.generateHash,sessionManager:SessionManager,cookieSyncManager:cookieSyncManager,persistence:Persistence,isIOS:!!(window.mParticle&&window.mParticle.isIOS)&&window.mParticle.isIOS,Identity:IdentityAPI$2,Validators:Validators$4,_Identity:Identity,_IdentityRequest:Identity.IdentityRequest,IdentityType:Types.IdentityType,EventType:Types.EventType,CommerceEventType:Types.CommerceEventType,PromotionType:Types.PromotionActionType,ProductActionType:Types.ProductActionType,/**
-    * Initializes the mParticle SDK
-    *
-    * @method init
-    * @param {String} apiKey your mParticle assigned API key
-    * @param {Object} [options] an options object for additional configuration
-    */init:function init(a,b){// /config code - Fetch config when requestConfig = true, otherwise, proceed with SDKInitialization
+ * Invoke these methods on the mParticle object.
+ * Example: mParticle.endSession()
+ *
+ * @class mParticle
+ */var mParticle$1={config:window.mParticle?window.mParticle.config:{},Store:{},getDeviceId:getDeviceId$1,generateHash:Helpers.generateHash,sessionManager:SessionManager,cookieSyncManager:cookieSyncManager,persistence:Persistence,isIOS:!!(window.mParticle&&window.mParticle.isIOS)&&window.mParticle.isIOS,Identity:IdentityAPI$2,Validators:Validators$4,_Identity:Identity,_IdentityRequest:Identity.IdentityRequest,IdentityType:Types.IdentityType,EventType:Types.EventType,CommerceEventType:Types.CommerceEventType,PromotionType:Types.PromotionActionType,ProductActionType:Types.ProductActionType,/**
+     * Initializes the mParticle SDK
+     *
+     * @method init
+     * @param {String} apiKey your mParticle assigned API key
+     * @param {Object} [options] an options object for additional configuration
+     */init:function init(a,b){// /config code - Fetch config when requestConfig = true, otherwise, proceed with SDKInitialization
 // Since fetching the configuration is asynchronous, we must pass completeSDKInitialization
 // to it for it to be run after fetched
 return !b&&window.mParticle.config&&(window.console.warn("You did not pass a config object to mParticle.init(). Attempting to use the window.mParticle.config if it exists. Please note that in a future release, this may not work and mParticle will not initialize properly"),b=window.mParticle.config),runPreConfigFetchInitialization(a,b),b?void(!b.hasOwnProperty("requestConfig")||b.requestConfig?ApiClient.getSDKConfiguration(a,b,completeSDKInitialization):completeSDKInitialization(a,b)):void window.console.error("No config available on the window, please pass a config object to mParticle.init()")},setLogLevel:function setLogLevel(a){mParticle$1.Logger.setLogLevel(a);},/**
-    * Completely resets the state of the SDK. mParticle.init(apiKey, window.mParticle.config) will need to be called again.
-    * @method reset
-    * @param {Boolean} keepPersistence if passed as true, this method will only reset the in-memory SDK state.
-    */reset:function reset(a,b){mParticle$1.Store&&delete mParticle$1.Store,mParticle$1.Store=new Store(a),mParticle$1.Store.isLocalStorageAvailable=Persistence.determineLocalStorageAvailability(window.localStorage),Events.stopTracking(),b||Persistence.resetPersistence(),Persistence.forwardingStatsBatches.uploadsTable={},Persistence.forwardingStatsBatches.forwardingStatsEventQueue=[],mParticle$1.preInit={readyQueue:[],pixelConfigurations:[],integrationDelays:{},forwarderConstructors:[],isDevelopmentMode:!1};},ready:function ready(a){mParticle$1.Store.isInitialized&&"function"==typeof a?a():mParticle$1.preInit.readyQueue.push(a);},/**
-    * Returns the mParticle SDK version number
-    * @method getVersion
-    * @return {String} mParticle SDK version number
-    */getVersion:function getVersion(){return Constants.sdkVersion},/**
-    * Sets the app version
-    * @method setAppVersion
-    * @param {String} version version number
-    */setAppVersion:function setAppVersion(a){mParticle$1.Store.SDKConfig.appVersion=a,Persistence.update();},/**
-    * Gets the app name
-    * @method getAppName
-    * @return {String} App name
-    */getAppName:function getAppName(){return mParticle$1.Store.SDKConfig.appName},/**
-    * Sets the app name
-    * @method setAppName
-    * @param {String} name App Name
-    */setAppName:function setAppName(a){mParticle$1.Store.SDKConfig.appName=a;},/**
-    * Gets the app version
-    * @method getAppVersion
-    * @return {String} App version
-    */getAppVersion:function getAppVersion(){return mParticle$1.Store.SDKConfig.appVersion},/**
-    * Stops tracking the location of the user
-    * @method stopTrackingLocation
-    */stopTrackingLocation:function stopTrackingLocation(){SessionManager.resetSessionTimer(),Events.stopTracking();},/**
-    * Starts tracking the location of the user
-    * @method startTrackingLocation
-    * @param {Function} [callback] A callback function that is called when the location is either allowed or rejected by the user. A position object of schema {coords: {latitude: number, longitude: number}} is passed to the callback
-    */startTrackingLocation:function startTrackingLocation(a){Validators$4.isFunction(a)||mParticle$1.Logger.warning("Warning: Location tracking is triggered, but not including a callback into the `startTrackingLocation` may result in events logged too quickly and not being associated with a location."),SessionManager.resetSessionTimer(),Events.startTracking(a);},/**
-    * Sets the position of the user
-    * @method setPosition
-    * @param {Number} lattitude lattitude digit
-    * @param {Number} longitude longitude digit
-    */setPosition:function setPosition(a,b){SessionManager.resetSessionTimer(),"number"==typeof a&&"number"==typeof b?mParticle$1.Store.currentPosition={lat:a,lng:b}:mParticle$1.Logger.error("Position latitude and/or longitude must both be of type number");},/**
-    * Starts a new session
-    * @method startNewSession
-    */startNewSession:function startNewSession(){SessionManager.startNewSession();},/**
-    * Ends the current session
-    * @method endSession
-    */endSession:function endSession(){// Sends true as an over ride vs when endSession is called from the setInterval
+     * Completely resets the state of the SDK. mParticle.init(apiKey, window.mParticle.config) will need to be called again.
+     * @method reset
+     * @param {Boolean} keepPersistence if passed as true, this method will only reset the in-memory SDK state.
+     */reset:function reset(a,b){mParticle$1.Store&&delete mParticle$1.Store,mParticle$1.Store=new Store(a),mParticle$1.Store.isLocalStorageAvailable=Persistence.determineLocalStorageAvailability(window.localStorage),Events.stopTracking(),b||Persistence.resetPersistence(),Persistence.forwardingStatsBatches.uploadsTable={},Persistence.forwardingStatsBatches.forwardingStatsEventQueue=[],mParticle$1.preInit={readyQueue:[],pixelConfigurations:[],integrationDelays:{},forwarderConstructors:[],isDevelopmentMode:!1};},ready:function ready(a){mParticle$1.Store.isInitialized&&"function"==typeof a?a():mParticle$1.preInit.readyQueue.push(a);},/**
+     * Returns the mParticle SDK version number
+     * @method getVersion
+     * @return {String} mParticle SDK version number
+     */getVersion:function getVersion(){return Constants.sdkVersion},/**
+     * Sets the app version
+     * @method setAppVersion
+     * @param {String} version version number
+     */setAppVersion:function setAppVersion(a){mParticle$1.Store.SDKConfig.appVersion=a,Persistence.update();},/**
+     * Gets the app name
+     * @method getAppName
+     * @return {String} App name
+     */getAppName:function getAppName(){return mParticle$1.Store.SDKConfig.appName},/**
+     * Sets the app name
+     * @method setAppName
+     * @param {String} name App Name
+     */setAppName:function setAppName(a){mParticle$1.Store.SDKConfig.appName=a;},/**
+     * Gets the app version
+     * @method getAppVersion
+     * @return {String} App version
+     */getAppVersion:function getAppVersion(){return mParticle$1.Store.SDKConfig.appVersion},/**
+     * Stops tracking the location of the user
+     * @method stopTrackingLocation
+     */stopTrackingLocation:function stopTrackingLocation(){SessionManager.resetSessionTimer(),Events.stopTracking();},/**
+     * Starts tracking the location of the user
+     * @method startTrackingLocation
+     * @param {Function} [callback] A callback function that is called when the location is either allowed or rejected by the user. A position object of schema {coords: {latitude: number, longitude: number}} is passed to the callback
+     */startTrackingLocation:function startTrackingLocation(a){Validators$4.isFunction(a)||mParticle$1.Logger.warning("Warning: Location tracking is triggered, but not including a callback into the `startTrackingLocation` may result in events logged too quickly and not being associated with a location."),SessionManager.resetSessionTimer(),Events.startTracking(a);},/**
+     * Sets the position of the user
+     * @method setPosition
+     * @param {Number} lattitude lattitude digit
+     * @param {Number} longitude longitude digit
+     */setPosition:function setPosition(a,b){SessionManager.resetSessionTimer(),"number"==typeof a&&"number"==typeof b?mParticle$1.Store.currentPosition={lat:a,lng:b}:mParticle$1.Logger.error("Position latitude and/or longitude must both be of type number");},/**
+     * Starts a new session
+     * @method startNewSession
+     */startNewSession:function startNewSession(){SessionManager.startNewSession();},/**
+     * Ends the current session
+     * @method endSession
+     */endSession:function endSession(){// Sends true as an over ride vs when endSession is called from the setInterval
 SessionManager.endSession(!0);},/**
      * Logs a Base Event to mParticle's servers
      * @param {Object} event Base Event Object
-     */logBaseEvent:function logBaseEvent(a){return (SessionManager.resetSessionTimer(),"string"!=typeof a.name)?void mParticle$1.Logger.error(Messages$8.ErrorMessages.EventNameInvalidType):(a.type||(a.type=Types.EventType.Unknown),Helpers.canLog()?void Events.logEvent(a):void mParticle$1.Logger.error(Messages$8.ErrorMessages.LoggingDisabled))},/**
-    * Logs an event to mParticle's servers
-    * @method logEvent
-    * @param {String} eventName The name of the event
-    * @param {Number} [eventType] The eventType as seen [here](http://docs.mparticle.com/developers/sdk/web/event-tracking#event-type)
-    * @param {Object} [eventInfo] Attributes for the event
-    * @param {Object} [customFlags] Additional customFlags
-    */logEvent:function logEvent(a,b,c,d){return (SessionManager.resetSessionTimer(),"string"!=typeof a)?void mParticle$1.Logger.error(Messages$8.ErrorMessages.EventNameInvalidType):(b||(b=Types.EventType.Unknown),Helpers.isEventType(b)?Helpers.canLog()?void Events.logEvent({messageType:Types.MessageType.PageEvent,name:a,data:c,eventType:b,customFlags:d}):void mParticle$1.Logger.error(Messages$8.ErrorMessages.LoggingDisabled):void mParticle$1.Logger.error("Invalid event type: "+b+", must be one of: \n"+JSON.stringify(Types.EventType)))},/**
-    * Used to log custom errors
-    *
-    * @method logError
-    * @param {String or Object} error The name of the error (string), or an object formed as follows {name: 'exampleName', message: 'exampleMessage', stack: 'exampleStack'}
-    * @param {Object} [attrs] Custom attrs to be passed along with the error event; values must be string, number, or boolean
-    */logError:function logError(a,b){if(SessionManager.resetSessionTimer(),!!a){"string"==typeof a&&(a={message:a});var c={m:a.message?a.message:a,s:"Error",t:a.stack};if(b){var d=Helpers.sanitizeAttributes(b);for(var e in d)c[e]=d[e];}Events.logEvent({messageType:Types.MessageType.CrashReport,name:a.name?a.name:"Error",data:c,eventType:Types.EventType.Other});}},/**
-    * Logs `click` events
-    * @method logLink
-    * @param {String} selector The selector to add a 'click' event to (ex. #purchase-event)
-    * @param {String} [eventName] The name of the event
-    * @param {Number} [eventType] The eventType as seen [here](http://docs.mparticle.com/developers/sdk/javascript/event-tracking#event-type)
-    * @param {Object} [eventInfo] Attributes for the event
-    */logLink:function logLink(a,b,c,d){SessionManager.resetSessionTimer(),Events.addEventHandler("click",a,b,d,c);},/**
-    * Logs `submit` events
-    * @method logForm
-    * @param {String} selector The selector to add the event handler to (ex. #search-event)
-    * @param {String} [eventName] The name of the event
-    * @param {Number} [eventType] The eventType as seen [here](http://docs.mparticle.com/developers/sdk/javascript/event-tracking#event-type)
-    * @param {Object} [eventInfo] Attributes for the event
-    */logForm:function logForm(a,b,c,d){SessionManager.resetSessionTimer(),Events.addEventHandler("submit",a,b,d,c);},/**
-    * Logs a page view
-    * @method logPageView
-    * @param {String} eventName The name of the event. Defaults to 'PageView'.
-    * @param {Object} [attrs] Attributes for the event
-    * @param {Object} [customFlags] Custom flags for the event
-    */logPageView:function logPageView(a,b,c){if(SessionManager.resetSessionTimer(),Helpers.canLog()){if(Validators$4.isStringOrNumber(a)||(a="PageView"),!b)b={hostname:window.location.hostname,title:window.document.title};else if(!Helpers.isObject(b))return void mParticle$1.Logger.error("The attributes argument must be an object. A "+_typeof_1(b)+" was entered. Please correct and retry.");if(c&&!Helpers.isObject(c))return void mParticle$1.Logger.error("The customFlags argument must be an object. A "+_typeof_1(c)+" was entered. Please correct and retry.")}Events.logEvent({messageType:Types.MessageType.PageView,name:a,data:b,eventType:Types.EventType.Unknown,customFlags:c});},Consent:{createGDPRConsent:Consent.createGDPRConsent,createConsentState:Consent.createConsentState},/**
-    * Invoke these methods on the mParticle.eCommerce object.
-    * Example: mParticle.eCommerce.createImpresion(...)
-    * @class mParticle.eCommerce
-    */eCommerce:{/**
-        * Invoke these methods on the mParticle.eCommerce.Cart object.
-        * Example: mParticle.eCommerce.Cart.add(...)
-        * @class mParticle.eCommerce.Cart
-        */Cart:{/**
-            * Adds a product to the cart
-            * @method add
-            * @param {Object} product The product you want to add to the cart
-            * @param {Boolean} [logEventBoolean] Option to log the event to mParticle's servers. If blank, no logging occurs.
-            */add:function add(a,b){var c,d=mParticle$1.Identity.getCurrentUser();d&&(c=d.getMPID()),mParticleUserCart$1(c).add(a,b);},/**
-            * Removes a product from the cart
-            * @method remove
-            * @param {Object} product The product you want to add to the cart
-            * @param {Boolean} [logEventBoolean] Option to log the event to mParticle's servers. If blank, no logging occurs.
-            */remove:function remove(a,b){var c,d=mParticle$1.Identity.getCurrentUser();d&&(c=d.getMPID()),mParticleUserCart$1(c).remove(a,b);},/**
-            * Clears the cart
-            * @method clear
-            */clear:function clear(){var a,b=mParticle$1.Identity.getCurrentUser();b&&(a=b.getMPID()),mParticleUserCart$1(a).clear();}},/**
-        * Sets the currency code
-        * @for mParticle.eCommerce
-        * @method setCurrencyCode
-        * @param {String} code The currency code
-        */setCurrencyCode:function setCurrencyCode(a){return "string"==typeof a?void(SessionManager.resetSessionTimer(),mParticle$1.Store.currencyCode=a):void mParticle$1.Logger.error("Code must be a string")},/**
-        * Creates a product
-        * @for mParticle.eCommerce
-        * @method createProduct
-        * @param {String} name product name
-        * @param {String} sku product sku
-        * @param {Number} price product price
-        * @param {Number} [quantity] product quantity. If blank, defaults to 1.
-        * @param {String} [variant] product variant
-        * @param {String} [category] product category
-        * @param {String} [brand] product brand
-        * @param {Number} [position] product position
-        * @param {String} [coupon] product coupon
-        * @param {Object} [attributes] product attributes
-        */createProduct:function createProduct(a,b,c,d,e,f,g,h,i,j){return SessionManager.resetSessionTimer(),Ecommerce.createProduct(a,b,c,d,e,f,g,h,i,j)},/**
-        * Creates a promotion
-        * @for mParticle.eCommerce
-        * @method createPromotion
-        * @param {String} id a unique promotion id
-        * @param {String} [creative] promotion creative
-        * @param {String} [name] promotion name
-        * @param {Number} [position] promotion position
-        */createPromotion:function createPromotion(a,b,c,d){return SessionManager.resetSessionTimer(),Ecommerce.createPromotion(a,b,c,d)},/**
-        * Creates a product impression
-        * @for mParticle.eCommerce
-        * @method createImpression
-        * @param {String} name impression name
-        * @param {Object} product the product for which an impression is being created
-        */createImpression:function createImpression(a,b){return SessionManager.resetSessionTimer(),Ecommerce.createImpression(a,b)},/**
-        * Creates a transaction attributes object to be used with a checkout
-        * @for mParticle.eCommerce
-        * @method createTransactionAttributes
-        * @param {String or Number} id a unique transaction id
-        * @param {String} [affiliation] affilliation
-        * @param {String} [couponCode] the coupon code for which you are creating transaction attributes
-        * @param {Number} [revenue] total revenue for the product being purchased
-        * @param {String} [shipping] the shipping method
-        * @param {Number} [tax] the tax amount
-        */createTransactionAttributes:function createTransactionAttributes(a,b,c,d,e,f){return SessionManager.resetSessionTimer(),Ecommerce.createTransactionAttributes(a,b,c,d,e,f)},/**
-        * Logs a checkout action
-        * @for mParticle.eCommerce
-        * @method logCheckout
-        * @param {Number} step checkout step number
-        * @param {Object} options
-        * @param {Object} attrs
-        * @param {Object} [customFlags] Custom flags for the event
-        */logCheckout:function logCheckout(a,b,c,d){SessionManager.resetSessionTimer(),Events.logCheckoutEvent(a,b,c,d);},/**
-        * Logs a product action
-        * @for mParticle.eCommerce
-        * @method logProductAction
-        * @param {Number} productActionType product action type as found [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/src/types.js#L206-L218)
-        * @param {Object} product the product for which you are creating the product action
-        * @param {Object} [attrs] attributes related to the product action
-        * @param {Object} [customFlags] Custom flags for the event
-        */logProductAction:function logProductAction(a,b,c,d){SessionManager.resetSessionTimer(),Events.logProductActionEvent(a,b,c,d);},/**
-        * Logs a product purchase
-        * @for mParticle.eCommerce
-        * @method logPurchase
-        * @param {Object} transactionAttributes transactionAttributes object
-        * @param {Object} product the product being purchased
-        * @param {Boolean} [clearCart] boolean to clear the cart after logging or not. Defaults to false
-        * @param {Object} [attrs] other attributes related to the product purchase
-        * @param {Object} [customFlags] Custom flags for the event
-        */logPurchase:function logPurchase(a,b,c,d,e){return a&&b?void(SessionManager.resetSessionTimer(),Events.logPurchaseEvent(a,b,d,e),!0===c&&mParticle$1.eCommerce.Cart.clear()):void mParticle$1.Logger.error(Messages$8.ErrorMessages.BadLogPurchase)},/**
-        * Logs a product promotion
-        * @for mParticle.eCommerce
-        * @method logPromotion
-        * @param {Number} type the promotion type as found [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/src/types.js#L275-L279)
-        * @param {Object} promotion promotion object
-        * @param {Object} [attrs] boolean to clear the cart after logging or not
-        * @param {Object} [customFlags] Custom flags for the event
-        */logPromotion:function logPromotion(a,b,c,d){SessionManager.resetSessionTimer(),Events.logPromotionEvent(a,b,c,d);},/**
-        * Logs a product impression
-        * @for mParticle.eCommerce
-        * @method logImpression
-        * @param {Object} impression product impression object
-        * @param {Object} attrs attributes related to the impression log
-        * @param {Object} [customFlags] Custom flags for the event
-        */logImpression:function logImpression(a,b,c){SessionManager.resetSessionTimer(),Events.logImpressionEvent(a,b,c);},/**
-        * Logs a refund
-        * @for mParticle.eCommerce
-        * @method logRefund
-        * @param {Object} transactionAttributes transaction attributes related to the refund
-        * @param {Object} product product being refunded
-        * @param {Boolean} [clearCart] boolean to clear the cart after refund is logged. Defaults to false.
-        * @param {Object} [attrs] attributes related to the refund
-        * @param {Object} [customFlags] Custom flags for the event
-        */logRefund:function logRefund(a,b,c,d,e){SessionManager.resetSessionTimer(),Events.logRefundEvent(a,b,d,e),!0===c&&mParticle$1.eCommerce.Cart.clear();},expandCommerceEvent:function expandCommerceEvent(a){return SessionManager.resetSessionTimer(),Ecommerce.expandCommerceEvent(a)}},/**
-    * Sets a session attribute
-    * @for mParticle
-    * @method setSessionAttribute
-    * @param {String} key key for session attribute
-    * @param {String or Number} value value for session attribute
-    */setSessionAttribute:function setSessionAttribute(a,b){// Logs to cookie
+     */logBaseEvent:function logBaseEvent(a){return (SessionManager.resetSessionTimer(),"string"!=typeof a.name)?void mParticle$1.Logger.error(Messages$8.ErrorMessages.EventNameInvalidType):(a.eventType||(a.eventType=Types.EventType.Unknown),Helpers.canLog()?void Events.logEvent(a):void mParticle$1.Logger.error(Messages$8.ErrorMessages.LoggingDisabled))},/**
+     * Logs an event to mParticle's servers
+     * @method logEvent
+     * @param {String} eventName The name of the event
+     * @param {Number} [eventType] The eventType as seen [here](http://docs.mparticle.com/developers/sdk/web/event-tracking#event-type)
+     * @param {Object} [eventInfo] Attributes for the event
+     * @param {Object} [customFlags] Additional customFlags
+     */logEvent:function logEvent(a,b,c,d){return (SessionManager.resetSessionTimer(),"string"!=typeof a)?void mParticle$1.Logger.error(Messages$8.ErrorMessages.EventNameInvalidType):(b||(b=Types.EventType.Unknown),Helpers.isEventType(b)?Helpers.canLog()?void Events.logEvent({messageType:Types.MessageType.PageEvent,name:a,data:c,eventType:b,customFlags:d}):void mParticle$1.Logger.error(Messages$8.ErrorMessages.LoggingDisabled):void mParticle$1.Logger.error("Invalid event type: "+b+", must be one of: \n"+JSON.stringify(Types.EventType)))},/**
+     * Used to log custom errors
+     *
+     * @method logError
+     * @param {String or Object} error The name of the error (string), or an object formed as follows {name: 'exampleName', message: 'exampleMessage', stack: 'exampleStack'}
+     * @param {Object} [attrs] Custom attrs to be passed along with the error event; values must be string, number, or boolean
+     */logError:function logError(a,b){if(SessionManager.resetSessionTimer(),!!a){"string"==typeof a&&(a={message:a});var c={m:a.message?a.message:a,s:"Error",t:a.stack};if(b){var d=Helpers.sanitizeAttributes(b);for(var e in d)c[e]=d[e];}Events.logEvent({messageType:Types.MessageType.CrashReport,name:a.name?a.name:"Error",data:c,eventType:Types.EventType.Other});}},/**
+     * Logs `click` events
+     * @method logLink
+     * @param {String} selector The selector to add a 'click' event to (ex. #purchase-event)
+     * @param {String} [eventName] The name of the event
+     * @param {Number} [eventType] The eventType as seen [here](http://docs.mparticle.com/developers/sdk/javascript/event-tracking#event-type)
+     * @param {Object} [eventInfo] Attributes for the event
+     */logLink:function logLink(a,b,c,d){SessionManager.resetSessionTimer(),Events.addEventHandler("click",a,b,d,c);},/**
+     * Logs `submit` events
+     * @method logForm
+     * @param {String} selector The selector to add the event handler to (ex. #search-event)
+     * @param {String} [eventName] The name of the event
+     * @param {Number} [eventType] The eventType as seen [here](http://docs.mparticle.com/developers/sdk/javascript/event-tracking#event-type)
+     * @param {Object} [eventInfo] Attributes for the event
+     */logForm:function logForm(a,b,c,d){SessionManager.resetSessionTimer(),Events.addEventHandler("submit",a,b,d,c);},/**
+     * Logs a page view
+     * @method logPageView
+     * @param {String} eventName The name of the event. Defaults to 'PageView'.
+     * @param {Object} [attrs] Attributes for the event
+     * @param {Object} [customFlags] Custom flags for the event
+     */logPageView:function logPageView(a,b,c){if(SessionManager.resetSessionTimer(),Helpers.canLog()){if(Validators$4.isStringOrNumber(a)||(a="PageView"),!b)b={hostname:window.location.hostname,title:window.document.title};else if(!Helpers.isObject(b))return void mParticle$1.Logger.error("The attributes argument must be an object. A "+_typeof_1(b)+" was entered. Please correct and retry.");if(c&&!Helpers.isObject(c))return void mParticle$1.Logger.error("The customFlags argument must be an object. A "+_typeof_1(c)+" was entered. Please correct and retry.")}Events.logEvent({messageType:Types.MessageType.PageView,name:a,data:b,eventType:Types.EventType.Unknown,customFlags:c});},Consent:{createGDPRConsent:Consent.createGDPRConsent,createConsentState:Consent.createConsentState},/**
+     * Invoke these methods on the mParticle.eCommerce object.
+     * Example: mParticle.eCommerce.createImpresion(...)
+     * @class mParticle.eCommerce
+     */eCommerce:{/**
+         * Invoke these methods on the mParticle.eCommerce.Cart object.
+         * Example: mParticle.eCommerce.Cart.add(...)
+         * @class mParticle.eCommerce.Cart
+         */Cart:{/**
+             * Adds a product to the cart
+             * @method add
+             * @param {Object} product The product you want to add to the cart
+             * @param {Boolean} [logEventBoolean] Option to log the event to mParticle's servers. If blank, no logging occurs.
+             */add:function add(a,b){var c,d=mParticle$1.Identity.getCurrentUser();d&&(c=d.getMPID()),mParticleUserCart$1(c).add(a,b);},/**
+             * Removes a product from the cart
+             * @method remove
+             * @param {Object} product The product you want to add to the cart
+             * @param {Boolean} [logEventBoolean] Option to log the event to mParticle's servers. If blank, no logging occurs.
+             */remove:function remove(a,b){var c,d=mParticle$1.Identity.getCurrentUser();d&&(c=d.getMPID()),mParticleUserCart$1(c).remove(a,b);},/**
+             * Clears the cart
+             * @method clear
+             */clear:function clear(){var a,b=mParticle$1.Identity.getCurrentUser();b&&(a=b.getMPID()),mParticleUserCart$1(a).clear();}},/**
+         * Sets the currency code
+         * @for mParticle.eCommerce
+         * @method setCurrencyCode
+         * @param {String} code The currency code
+         */setCurrencyCode:function setCurrencyCode(a){return "string"==typeof a?void(SessionManager.resetSessionTimer(),mParticle$1.Store.currencyCode=a):void mParticle$1.Logger.error("Code must be a string")},/**
+         * Creates a product
+         * @for mParticle.eCommerce
+         * @method createProduct
+         * @param {String} name product name
+         * @param {String} sku product sku
+         * @param {Number} price product price
+         * @param {Number} [quantity] product quantity. If blank, defaults to 1.
+         * @param {String} [variant] product variant
+         * @param {String} [category] product category
+         * @param {String} [brand] product brand
+         * @param {Number} [position] product position
+         * @param {String} [coupon] product coupon
+         * @param {Object} [attributes] product attributes
+         */createProduct:function createProduct(a,b,c,d,e,f,g,h,i,j){return SessionManager.resetSessionTimer(),Ecommerce.createProduct(a,b,c,d,e,f,g,h,i,j)},/**
+         * Creates a promotion
+         * @for mParticle.eCommerce
+         * @method createPromotion
+         * @param {String} id a unique promotion id
+         * @param {String} [creative] promotion creative
+         * @param {String} [name] promotion name
+         * @param {Number} [position] promotion position
+         */createPromotion:function createPromotion(a,b,c,d){return SessionManager.resetSessionTimer(),Ecommerce.createPromotion(a,b,c,d)},/**
+         * Creates a product impression
+         * @for mParticle.eCommerce
+         * @method createImpression
+         * @param {String} name impression name
+         * @param {Object} product the product for which an impression is being created
+         */createImpression:function createImpression(a,b){return SessionManager.resetSessionTimer(),Ecommerce.createImpression(a,b)},/**
+         * Creates a transaction attributes object to be used with a checkout
+         * @for mParticle.eCommerce
+         * @method createTransactionAttributes
+         * @param {String or Number} id a unique transaction id
+         * @param {String} [affiliation] affilliation
+         * @param {String} [couponCode] the coupon code for which you are creating transaction attributes
+         * @param {Number} [revenue] total revenue for the product being purchased
+         * @param {String} [shipping] the shipping method
+         * @param {Number} [tax] the tax amount
+         */createTransactionAttributes:function createTransactionAttributes(a,b,c,d,e,f){return SessionManager.resetSessionTimer(),Ecommerce.createTransactionAttributes(a,b,c,d,e,f)},/**
+         * Logs a checkout action
+         * @for mParticle.eCommerce
+         * @method logCheckout
+         * @param {Number} step checkout step number
+         * @param {Object} options
+         * @param {Object} attrs
+         * @param {Object} [customFlags] Custom flags for the event
+         */logCheckout:function logCheckout(a,b,c,d){SessionManager.resetSessionTimer(),Events.logCheckoutEvent(a,b,c,d);},/**
+         * Logs a product action
+         * @for mParticle.eCommerce
+         * @method logProductAction
+         * @param {Number} productActionType product action type as found [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/src/types.js#L206-L218)
+         * @param {Object} product the product for which you are creating the product action
+         * @param {Object} [attrs] attributes related to the product action
+         * @param {Object} [customFlags] Custom flags for the event
+         */logProductAction:function logProductAction(a,b,c,d){SessionManager.resetSessionTimer(),Events.logProductActionEvent(a,b,c,d);},/**
+         * Logs a product purchase
+         * @for mParticle.eCommerce
+         * @method logPurchase
+         * @param {Object} transactionAttributes transactionAttributes object
+         * @param {Object} product the product being purchased
+         * @param {Boolean} [clearCart] boolean to clear the cart after logging or not. Defaults to false
+         * @param {Object} [attrs] other attributes related to the product purchase
+         * @param {Object} [customFlags] Custom flags for the event
+         */logPurchase:function logPurchase(a,b,c,d,e){return a&&b?void(SessionManager.resetSessionTimer(),Events.logPurchaseEvent(a,b,d,e),!0===c&&mParticle$1.eCommerce.Cart.clear()):void mParticle$1.Logger.error(Messages$8.ErrorMessages.BadLogPurchase)},/**
+         * Logs a product promotion
+         * @for mParticle.eCommerce
+         * @method logPromotion
+         * @param {Number} type the promotion type as found [here](https://github.com/mParticle/mparticle-sdk-javascript/blob/master-v2/src/types.js#L275-L279)
+         * @param {Object} promotion promotion object
+         * @param {Object} [attrs] boolean to clear the cart after logging or not
+         * @param {Object} [customFlags] Custom flags for the event
+         */logPromotion:function logPromotion(a,b,c,d){SessionManager.resetSessionTimer(),Events.logPromotionEvent(a,b,c,d);},/**
+         * Logs a product impression
+         * @for mParticle.eCommerce
+         * @method logImpression
+         * @param {Object} impression product impression object
+         * @param {Object} attrs attributes related to the impression log
+         * @param {Object} [customFlags] Custom flags for the event
+         */logImpression:function logImpression(a,b,c){SessionManager.resetSessionTimer(),Events.logImpressionEvent(a,b,c);},/**
+         * Logs a refund
+         * @for mParticle.eCommerce
+         * @method logRefund
+         * @param {Object} transactionAttributes transaction attributes related to the refund
+         * @param {Object} product product being refunded
+         * @param {Boolean} [clearCart] boolean to clear the cart after refund is logged. Defaults to false.
+         * @param {Object} [attrs] attributes related to the refund
+         * @param {Object} [customFlags] Custom flags for the event
+         */logRefund:function logRefund(a,b,c,d,e){SessionManager.resetSessionTimer(),Events.logRefundEvent(a,b,d,e),!0===c&&mParticle$1.eCommerce.Cart.clear();},expandCommerceEvent:function expandCommerceEvent(a){return SessionManager.resetSessionTimer(),Ecommerce.expandCommerceEvent(a)}},/**
+     * Sets a session attribute
+     * @for mParticle
+     * @method setSessionAttribute
+     * @param {String} key key for session attribute
+     * @param {String or Number} value value for session attribute
+     */setSessionAttribute:function setSessionAttribute(a,b){// Logs to cookie
 // And logs to in-memory object
 // Example: mParticle.setSessionAttribute('location', '33431');
 if(SessionManager.resetSessionTimer(),Helpers.canLog()){if(!Validators$4.isValidAttributeValue(b))return void mParticle$1.Logger.error(Messages$8.ErrorMessages.BadAttribute);if(!Validators$4.isValidKeyValue(a))return void mParticle$1.Logger.error(Messages$8.ErrorMessages.BadKey);if(mParticle$1.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetSessionAttribute,JSON.stringify({key:a,value:b}));else{var c=Helpers.findKeyInObject(mParticle$1.Store.sessionAttributes,a);c&&(a=c),mParticle$1.Store.sessionAttributes[a]=b,Persistence.update(),Forwarders.applyToForwarders("setSessionAttribute",[a,b]);}}},/**
-    * Set opt out of logging
-    * @for mParticle
-    * @method setOptOut
-    * @param {Boolean} isOptingOut boolean to opt out or not. When set to true, opt out of logging.
-    */setOptOut:function setOptOut(a){SessionManager.resetSessionTimer(),mParticle$1.Store.isEnabled=!a,Events.logOptOut(),Persistence.update(),mParticle$1.Store.activeForwarders.length&&mParticle$1.Store.activeForwarders.forEach(function(b){if(b.setOptOut){var c=b.setOptOut(a);c&&mParticle$1.Logger.verbose(c);}});},/**
-    * Set or remove the integration attributes for a given integration ID.
-    * Integration attributes are keys and values specific to a given integration. For example,
-    * many integrations have their own internal user/device ID. mParticle will store integration attributes
-    * for a given device, and will be able to use these values for server-to-server communication to services.
-    * This is often useful when used in combination with a server-to-server feed, allowing the feed to be enriched
-    * with the necessary integration attributes to be properly forwarded to the given integration.
-    * @for mParticle
-    * @method setIntegrationAttribute
-    * @param {Number} integrationId mParticle integration ID
-    * @param {Object} attrs a map of attributes that will replace any current attributes. The keys are predefined by mParticle.
-    * Please consult with the mParticle docs or your solutions consultant for the correct value. You may
-    * also pass a null or empty map here to remove all of the attributes.
-    */setIntegrationAttribute:function setIntegrationAttribute(a,b){if("number"!=typeof a)return void mParticle$1.Logger.error("integrationId must be a number");if(null===b)mParticle$1.Store.integrationAttributes[a]={};else{if(!Helpers.isObject(b))return void mParticle$1.Logger.error("Attrs must be an object with keys and values. You entered a "+_typeof_1(b));if(0===Object.keys(b).length)mParticle$1.Store.integrationAttributes[a]={};else for(var c in b)if("string"!=typeof c){mParticle$1.Logger.error("Keys must be strings, you entered a "+_typeof_1(c));continue}else if("string"==typeof b[c])Helpers.isObject(mParticle$1.Store.integrationAttributes[a])?mParticle$1.Store.integrationAttributes[a][c]=b[c]:(mParticle$1.Store.integrationAttributes[a]={},mParticle$1.Store.integrationAttributes[a][c]=b[c]);else{mParticle$1.Logger.error("Values for integration attributes must be strings. You entered a "+_typeof_1(b[c]));continue}}Persistence.update();},/**
-    * Get integration attributes for a given integration ID.
-    * @method getIntegrationAttributes
-    * @param {Number} integrationId mParticle integration ID
-    * @return {Object} an object map of the integrationId's attributes
-    */getIntegrationAttributes:function getIntegrationAttributes(a){return mParticle$1.Store.integrationAttributes[a]?mParticle$1.Store.integrationAttributes[a]:{}},addForwarder:function addForwarder(a){mParticle$1.preInit.forwarderConstructors.push(a);},configurePixel:function configurePixel(a){Forwarders.configurePixel(a);},_getActiveForwarders:function _getActiveForwarders(){return mParticle$1.Store.activeForwarders},_getIntegrationDelays:function _getIntegrationDelays(){return mParticle$1.preInit.integrationDelays},_setIntegrationDelay:function _setIntegrationDelay(a,b){mParticle$1.preInit.integrationDelays[a]=b;}};function completeSDKInitialization(a,b){if(mParticle$1.Store.configurationLoaded=!0,mParticle$1.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetSessionAttribute,JSON.stringify({key:"$src_env",value:"webview"})),a&&NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetSessionAttribute,JSON.stringify({key:"$src_key",value:a}));else{var c;// If no initialIdentityRequest is passed in, we set the user identities to what is currently in cookies for the identify request
+     * Set opt out of logging
+     * @for mParticle
+     * @method setOptOut
+     * @param {Boolean} isOptingOut boolean to opt out or not. When set to true, opt out of logging.
+     */setOptOut:function setOptOut(a){SessionManager.resetSessionTimer(),mParticle$1.Store.isEnabled=!a,Events.logOptOut(),Persistence.update(),mParticle$1.Store.activeForwarders.length&&mParticle$1.Store.activeForwarders.forEach(function(b){if(b.setOptOut){var c=b.setOptOut(a);c&&mParticle$1.Logger.verbose(c);}});},/**
+     * Set or remove the integration attributes for a given integration ID.
+     * Integration attributes are keys and values specific to a given integration. For example,
+     * many integrations have their own internal user/device ID. mParticle will store integration attributes
+     * for a given device, and will be able to use these values for server-to-server communication to services.
+     * This is often useful when used in combination with a server-to-server feed, allowing the feed to be enriched
+     * with the necessary integration attributes to be properly forwarded to the given integration.
+     * @for mParticle
+     * @method setIntegrationAttribute
+     * @param {Number} integrationId mParticle integration ID
+     * @param {Object} attrs a map of attributes that will replace any current attributes. The keys are predefined by mParticle.
+     * Please consult with the mParticle docs or your solutions consultant for the correct value. You may
+     * also pass a null or empty map here to remove all of the attributes.
+     */setIntegrationAttribute:function setIntegrationAttribute(a,b){if("number"!=typeof a)return void mParticle$1.Logger.error("integrationId must be a number");if(null===b)mParticle$1.Store.integrationAttributes[a]={};else{if(!Helpers.isObject(b))return void mParticle$1.Logger.error("Attrs must be an object with keys and values. You entered a "+_typeof_1(b));if(0===Object.keys(b).length)mParticle$1.Store.integrationAttributes[a]={};else for(var c in b)if("string"!=typeof c){mParticle$1.Logger.error("Keys must be strings, you entered a "+_typeof_1(c));continue}else if("string"==typeof b[c])Helpers.isObject(mParticle$1.Store.integrationAttributes[a])?mParticle$1.Store.integrationAttributes[a][c]=b[c]:(mParticle$1.Store.integrationAttributes[a]={},mParticle$1.Store.integrationAttributes[a][c]=b[c]);else{mParticle$1.Logger.error("Values for integration attributes must be strings. You entered a "+_typeof_1(b[c]));continue}}Persistence.update();},/**
+     * Get integration attributes for a given integration ID.
+     * @method getIntegrationAttributes
+     * @param {Number} integrationId mParticle integration ID
+     * @return {Object} an object map of the integrationId's attributes
+     */getIntegrationAttributes:function getIntegrationAttributes(a){return mParticle$1.Store.integrationAttributes[a]?mParticle$1.Store.integrationAttributes[a]:{}},addForwarder:function addForwarder(a){mParticle$1.preInit.forwarderConstructors.push(a);},configurePixel:function configurePixel(a){Forwarders.configurePixel(a);},_getActiveForwarders:function _getActiveForwarders(){return mParticle$1.Store.activeForwarders},_getIntegrationDelays:function _getIntegrationDelays(){return mParticle$1.preInit.integrationDelays},_setIntegrationDelay:function _setIntegrationDelay(a,b){mParticle$1.preInit.integrationDelays[a]=b;}};function completeSDKInitialization(a,b){if(mParticle$1.Store.configurationLoaded=!0,mParticle$1.Store.webviewBridgeEnabled)NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetSessionAttribute,JSON.stringify({key:"$src_env",value:"webview"})),a&&NativeSdkHelpers.sendToNative(Constants.NativeSdkPaths.SetSessionAttribute,JSON.stringify({key:"$src_key",value:a}));else{var c;// If no initialIdentityRequest is passed in, we set the user identities to what is currently in cookies for the identify request
 if(Helpers.isObject(mParticle$1.Store.SDKConfig.identifyRequest)&&Helpers.isObject(mParticle$1.Store.SDKConfig.identifyRequest.userIdentities)&&0===Object.keys(mParticle$1.Store.SDKConfig.identifyRequest.userIdentities).length||!mParticle$1.Store.SDKConfig.identifyRequest){var d={};if(c=mParticle$1.Identity.getCurrentUser(),c){var e=c.getUserIdentities().userIdentities||{};for(var f in e)e.hasOwnProperty(f)&&(d[f]=e[f]);}mParticle$1.Store.SDKConfig.identifyRequest={userIdentities:d};}// If migrating from pre-IDSync to IDSync, a sessionID will exist and an identify request will not have been fired, so we need this check
 mParticle$1.Store.migratingToIDSyncCookies&&(IdentityAPI$2.identify(mParticle$1.Store.SDKConfig.identifyRequest,mParticle$1.Store.SDKConfig.identityCallback),mParticle$1.Store.migratingToIDSyncCookies=!1),c=IdentityAPI$2.getCurrentUser(),Helpers.getFeatureFlag(Constants.FeatureFlags.ReportBatching)&&startForwardingStatsTimer(),Forwarders.processForwarders(b,ApiClient.prepareForwardingStats),!mParticle$1.Store.identifyCalled&&mParticle$1.Store.SDKConfig.identityCallback&&c&&c.getMPID()&&mParticle$1.Store.SDKConfig.identityCallback({httpCode:HTTPCodes$2.activeSession,getUser:function getUser(){return mParticleUser$1(c.getMPID())},getPreviousUser:function getPreviousUser(){var a=mParticle$1.Identity.getUsers(),b=a.shift();return b&&c&&b.getMPID()===c.getMPID()&&(b=a.shift()),b||null},body:{mpid:c.getMPID(),is_logged_in:mParticle$1.Store.isLoggedIn,matched_identities:c.getUserIdentities().userIdentities,context:null,is_ephemeral:!1}}),mParticle$1.sessionManager.initialize(),Events.logAST();}// Call any functions that are waiting for the library to be initialized
 mParticle$1.preInit.readyQueue&&mParticle$1.preInit.readyQueue.length&&(mParticle$1.preInit.readyQueue.forEach(function(a){Validators$4.isFunction(a)?a():Array.isArray(a)&&processPreloadedItem(a);}),mParticle$1.preInit.readyQueue=[]),mParticle$1.Store.isInitialized=!0,mParticle$1.Store.isFirstRun&&(mParticle$1.Store.isFirstRun=!1);}function runPreConfigFetchInitialization(a,b){//check to see if localStorage is available for migrating purposes
-mParticle$1.Logger=new Logger(b),mParticle$1.Store=new Store(b,mParticle$1.Logger),mParticle$1.Store.devToken=a||null,mParticle$1.Logger.verbose(Messages$8.InformationMessages.StartingInitialization),mParticle$1.Store.isLocalStorageAvailable=Persistence.determineLocalStorageAvailability(window.localStorage),mParticle$1.Store.webviewBridgeEnabled=NativeSdkHelpers.isWebviewEnabled(mParticle$1.Store.SDKConfig.requiredWebviewBridgeName,mParticle$1.Store.SDKConfig.minWebviewBridgeVersion),mParticle$1.Store.webviewBridgeEnabled||(Migrations.migrate(),Persistence.initializeStorage());}function processPreloadedItem(a){var b,c=a,d=c.splice(0,1)[0];if(mParticle$1[c[0]])mParticle$1[d].apply(this,c);else{var e=d.split(".");try{for(var f,g=mParticle$1,h=0;h<e.length;h++)f=e[h],g=g[f];g.apply(b,c);}catch(a){mParticle$1.Logger.verbose("Unable to compute proper mParticle function "+a);}}}mParticle$1.preInit={readyQueue:[],integrationDelays:{},forwarderConstructors:[]},window.mParticle&&window.mParticle.config&&window.mParticle.config.hasOwnProperty("rq")&&(mParticle$1.preInit.readyQueue=window.mParticle.config.rq),window.mParticle=mParticle$1;
+mParticle$1.Logger=new Logger(b),mParticle$1.Store=new Store(b,mParticle$1.Logger),mParticle$1.Store.devToken=a||null,mParticle$1.Logger.verbose(Messages$8.InformationMessages.StartingInitialization),mParticle$1.Store.isLocalStorageAvailable=Persistence.determineLocalStorageAvailability(window.localStorage),mParticle$1.Store.webviewBridgeEnabled=NativeSdkHelpers.isWebviewEnabled(mParticle$1.Store.SDKConfig.requiredWebviewBridgeName,mParticle$1.Store.SDKConfig.minWebviewBridgeVersion),mParticle$1.Store.webviewBridgeEnabled||(Migrations.migrate(),Persistence.initializeStorage());}function processPreloadedItem(a){var b=a,c=b.splice(0,1)[0];// if the first argument is a method on the base mParticle object, run it
+if(mParticle$1[b[0]])mParticle$1[c].apply(this,b);else{var d=c.split(".");try{for(var e,f=mParticle$1,g=0;g<d.length;g++)e=d[g],f=f[e];f.apply(this,b);}catch(a){mParticle$1.Logger.verbose("Unable to compute proper mParticle function "+a);}}}mParticle$1.preInit={readyQueue:[],integrationDelays:{},forwarderConstructors:[]},window.mParticle&&window.mParticle.config&&window.mParticle.config.hasOwnProperty("rq")&&(mParticle$1.preInit.readyQueue=window.mParticle.config.rq),window.mParticle=mParticle$1;
 
 /* harmony default export */ var mparticle_esm = (mParticle$1);
 
