@@ -16,8 +16,8 @@
         "webpack-dev-server": "^3.8.1"
     },
     "dependencies": {
-        "@mparticle/web-adobe-client-kit": "^2.0.1-rc.1",
-        "@mparticle/web-media-sdk": "^1.0.0-beta.1",
-        "@mparticle/web-sdk": "^2.9.12-rc.2"
+        "@mparticle/web-adobe-client-kit": "^2.0.2-rc.1",
+        "@mparticle/web-media-sdk": "^1.1.0",
+        "@mparticle/web-sdk": "^2.9.14-rc.1"
     }
 }
