@@ -16,7 +16,9 @@ window.mediaSDK = new MediaSession(
     'My sweet sweet media',
     120000,
     'Video',
-    'OnDemand'
+    'OnDemand',
+    true,
+    true
 );
 
 mParticle.init(apiKey, mParticleConfig);

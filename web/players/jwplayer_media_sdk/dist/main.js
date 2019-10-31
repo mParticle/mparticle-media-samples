@@ -3311,7 +3311,9 @@ window.mediaSDK = new mparticle_media_common_default.a(
     'My sweet sweet media',
     120000,
     'Video',
-    'OnDemand'
+    'OnDemand',
+    true,
+    true
 );
 
 mparticle_esm.init(apiKey, mParticleConfig);

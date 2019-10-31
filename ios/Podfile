@@ -2,18 +2,15 @@
 platform :ios, '11.0'
 source 'https://github.com/brightcove/BrightcoveSpecs.git'
 source 'https://github.com/CocoaPods/Specs.git'
-# TODO:(prod release): delete private specs source
-source 'ssh://git@git.corp.mparticle.com/mParticle/Specs.git'
-
 
 target 'MediaExample' do
   # Comment the next line if you don't want to use dynamic frameworks
   use_frameworks!
 
   # Pods for MediaExample
-  pod 'mParticle-Apple-Media', '~> 1.0'
+  pod 'mParticle-Apple-Media-SDK', '~> 1.0-beta.2'
   pod 'mParticle-Apple-SDK', '~> 7.0'
-  pod 'mParticle-Adobe-Heartbeat', '~> 7.0'
+  pod 'mParticle-Adobe/AdobeMedia', '~> 7.0'
   pod 'Brightcove-Player-Core/dynamic', '~> 6.4.0'
   pod 'JWPlayer-SDK', '~> 3.6.0'
 

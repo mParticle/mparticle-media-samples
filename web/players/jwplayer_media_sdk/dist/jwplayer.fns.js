@@ -10,7 +10,10 @@ jwplayer().on('time', function(obj) {
 
 jwplayer().on('ready', function(obj) {
     console.log('ready', obj);
-    mediaSDK.logQoS({ startupTime: obj.setupTime });
+
+    if (sessionStarted) {
+        mediaSDK.logQoS({ startupTime: obj.setupTime });
+    }
 });
 
 jwplayer().on('play', function(obj) {
@@ -143,6 +146,23 @@ jwplayer().on('complete', function(obj) {
 jwplayer().on('visualQuality', function(obj) {
     console.log('visualQuality', obj);
 
-    // Careful with the capitalization here
-    mediaSDK.logQoS({ bitRate: obj.bitrate });
+    if (sessionStarted) {
+        // Careful with the capitalization here
+        mediaSDK.logQoS({ bitRate: obj.bitrate });
+    }
 });
+
+// Subscribe to Media Event Listener so you can act upon any particular
+// Media Event that you may need to spy on
+window.mediaSDK.mediaEventListener = function(event) {
+    console.log('Picking up Media Event', event);
+    if (event.name === 'Play') {
+        console.log('mParticle Media SDK fired play event');
+
+        var customPageEvent = mediaSDK.createPageEvent('AlternativePlay', {
+            something: 'custom'
+        });
+
+        window.mParticle.logBaseEvent(customPageEvent);
+    }
+};
