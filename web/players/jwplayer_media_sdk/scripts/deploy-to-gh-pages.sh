@@ -20,5 +20,4 @@ echo "Deploying to Github Pages"
 git init
 git add .
 git commit -m "Deploy to Github Pages"
-# git push --force --quiet "https://git@github.com/mparticle-media-samples.git" master:gh-pages > /dev/null 2>&1
-git push --force --quiet "https://${GITHUB_TOKEN}@$github.com/${GITHUB_REPO}.git" master:gh-pages > /dev/null 2>&1
+git push --force --quiet "https://${GITHUB_TOKEN}@${GITHUB_REPO}" master:gh-pages > /dev/null 2>&1
