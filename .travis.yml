@@ -1,0 +1,15 @@
+language: node_js
+node_js:
+  - 'stable'
+
+jobs:
+  include:
+    - stage: 'Web Demo'
+      name: 'Web Demo'
+      script:
+        - 'cd ./web/players/jwplayer_media_sdk/'
+        - 'npm install'
+        - 'npm run deploy'
+
+deploy:
+  github_token: $GITHUB_TOKEN
