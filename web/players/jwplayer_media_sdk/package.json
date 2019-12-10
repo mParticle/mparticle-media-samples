@@ -13,9 +13,9 @@
     "author": "mParticle",
     "license": "ISC",
     "devDependencies": {
-        "webpack": "^4.32.2",
-        "webpack-cli": "^3.3.2",
-        "webpack-dev-server": "^3.8.1"
+        "webpack": "^4.41.2",
+        "webpack-cli": "^3.3.10",
+        "webpack-dev-server": "^3.9.0"
     },
     "dependencies": {
         "@mparticle/web-adobe-client-kit": "^2.0.2-rc.1",
