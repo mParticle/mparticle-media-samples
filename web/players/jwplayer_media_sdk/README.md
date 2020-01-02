@@ -1,3 +1,7 @@
+<img src="https://static.mparticle.com/sdk/mp_logo_black.svg" width="280"><br>
+
+[![Travis CI](https://travis-ci.com/mParticle/mparticle-media-samples.svg?branch=master)](https://travis-ci.com/mParticle/mparticle-media-samples)
+
 # JW Player + mParticle Media SDK Sample App
 
 This sample app uses JW Player along with mParticle Media SDK as an npm package.

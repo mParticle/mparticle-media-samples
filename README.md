@@ -1,5 +1,7 @@
 <img src="https://static.mparticle.com/sdk/mp_logo_black.svg" width="280"><br>
 
+[![Travis CI](https://travis-ci.com/mParticle/mparticle-media-samples.svg?branch=master)](https://travis-ci.com/mParticle/mparticle-media-samples)
+
 # mParticle Media Samples
 
 This repo contains a set of reference Media SDK implementations for iOS, Android, and Web.
@@ -26,7 +28,6 @@ In each sample you can see how the mParticle Media Session object is implemented
 
 - [Github](https://github.com/mparticle/mparticle-web-media-sdk)
 - [Docs](https://docs.mparticle.com/developers/sdk/web/media/)
-
 
 ## Support
 
