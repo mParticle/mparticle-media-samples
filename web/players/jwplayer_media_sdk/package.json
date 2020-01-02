@@ -19,7 +19,7 @@
     },
     "dependencies": {
         "@mparticle/web-adobe-client-kit": "^2.0.2-rc.1",
-        "@mparticle/web-media-sdk": "^1.1.0",
+        "@mparticle/web-media-sdk": "^1.2.1",
         "@mparticle/web-sdk": "^2.9.14-rc.1"
     }
 }

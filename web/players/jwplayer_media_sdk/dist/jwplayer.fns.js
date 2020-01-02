@@ -30,8 +30,12 @@ jwplayer().on('play', function(obj) {
 });
 
 jwplayer().on('pause', function(obj) {
-    console.log('pause', obj);
-    mediaSDK.logPause();
+    mediaSDK.logPause({
+        currentPlayheadPosition: jwplayer().getCurrentTime(),
+        customAttributes: {
+            exampleAttribute: 'I HAZ PAWZ'
+        }
+    });
 });
 
 jwplayer().on('beforeComplete', function(obj) {
@@ -156,6 +160,7 @@ jwplayer().on('visualQuality', function(obj) {
 // Media Event that you may need to spy on
 window.mediaSDK.mediaEventListener = function(event) {
     console.log('Picking up Media Event', event);
+    console.log('Example page event', event.toPageEvent());
     if (event.name === 'Play') {
         console.log('mParticle Media SDK fired play event');
 
