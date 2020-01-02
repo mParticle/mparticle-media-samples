@@ -1,5 +1,6 @@
 #!/bin/bash
 # See https://medium.com/@nthgergo/publishing-gh-pages-with-travis-ci-53a8270e87db
+echo "Starting Deployment to GH Pages"
 set -o errexit
 
 echo "Purge artifacts before starting"
