@@ -1,6 +1,6 @@
 {
     "name": "jwplayer-mparticle-media-sdk",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "",
     "main": "src/index.js",
     "scripts": {
@@ -18,7 +18,7 @@
     },
     "dependencies": {
         "@mparticle/web-adobe-client-kit": "^2.0.3-rc.0",
-        "@mparticle/web-media-sdk": "^1.2.1",
-        "@mparticle/web-sdk": "^2.9.14-rc.1"
+        "@mparticle/web-media-sdk": "^1.3.0",
+        "@mparticle/web-sdk": "^2.11.3"
     }
 }
