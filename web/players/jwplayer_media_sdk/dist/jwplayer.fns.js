@@ -5,7 +5,7 @@ jwplayer().on('time', function(obj) {
     // Note: Uncomment the following console.log if you want to see time progress.
     // Otherwise, leave it commented out as it will spam your console
     // console.log('time', obj);
-    mediaSDK.logPlayheadPosition(obj.position);
+    // mediaSDK.logPlayheadPosition(obj.position);
 });
 
 jwplayer().on('ready', function(obj) {
