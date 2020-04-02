@@ -133,8 +133,17 @@ jwplayer().on('beforePlay', function(obj) {
     // This happens at the moment a user interacts with the player
     // and before an ad loads
     console.log('beforePlay', obj);
+    // debugger;
     if (!sessionStarted) {
-        mediaSDK.logMediaSessionStart();
+        mediaSDK.logMediaSessionStart({
+            customAttributes: {
+                myCustomAttributes: 'cookie',
+                ad_content_campaign: 'Testing AD Content Campaign',
+                content_show: 'The Cookies',
+                content_season: 2,
+                content_episode: 14
+            }
+        });
         sessionStarted = true;
     }
 });
