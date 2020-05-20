@@ -1,6 +1,6 @@
 import mParticle from '@mparticle/web-sdk';
 import MediaSession from '@mparticle/web-media-sdk';
-import Adobe from '@mparticle/web-adobe-client-kit';
+import Adobe from '../node_modules/@mparticle/web-adobe-client-kit/packages/AdobeClient/dist/AdobeClientSideKit.common';
 
 const mParticleConfig = {
     isDevelopmentMode: true
