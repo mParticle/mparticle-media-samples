@@ -17,7 +17,7 @@
         "webpack-dev-server": "^3.9.0"
     },
     "dependencies": {
-        "@mparticle/web-adobe-client-kit": "git@github.com:mparticle-integrations/mparticle-javascript-integration-adobe.git#update-versions",
+        "@mparticle/web-adobe-client-kit": "https://github.com/mparticle-integrations/mparticle-javascript-integration-adobe.git#update-versions",
         "@mparticle/web-media-sdk": "^1.3.0",
         "@mparticle/web-sdk": "^2.11.3"
     }
