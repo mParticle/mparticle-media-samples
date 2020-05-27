@@ -112,7 +112,8 @@ jwplayer().on('adPlay', function(obj) {
     var adObject = {
         title: obj.title,
         id: obj.id,
-        placement: obj.position,
+        placement: 'main',
+        position: obj.position,
         duration: obj.length
     };
 
