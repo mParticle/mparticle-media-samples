@@ -31,7 +31,8 @@ jwplayer().on('play', function(obj) {
 
 jwplayer().on('pause', function(obj) {
     mediaSDK.logPause({
-        currentPlayheadPosition: jwplayer().getCurrentTime(),
+        // JW Player returns time in seconds. mParticle requires milliseconds.
+        currentPlayheadPosition: jwplayer().getCurrentTime() * 1000,
         customAttributes: {
             exampleAttribute: 'I HAZ PAWZ'
         }
@@ -78,7 +79,8 @@ jwplayer().on('adBreakStart', function(obj) {
     var adName = adPositionMap[adPosition] || 'mid-roll';
 
     // Current play head
-    var startTime = jwplayer('player').getCurrentTime();
+    // JW Player returns time in seconds. mParticle requires milliseconds.
+    var startTime = jwplayer('player').getCurrentTime() * 1000;
 
     var adBreakObject = {
         title: adName,
