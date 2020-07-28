@@ -3,7 +3,7 @@ var sessionStarted = false;
 var logTimeChange = false;
 
 jwplayer().on('time', function (obj) {
-    // We've disabled time update logging to spaming the console
+    // We've disabled time update logging to spamming the console
     // if you want to enable logging for time changes, add:
     // logTimeChange = true
     // in the console.
