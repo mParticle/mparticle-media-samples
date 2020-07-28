@@ -1,14 +1,20 @@
 // Used to keep track of when the media session actually starts
 var sessionStarted = false;
+var logTimeChange = false;
 
-jwplayer().on('time', function(obj) {
-    // Note: Uncomment the following console.log if you want to see time progress.
-    // Otherwise, leave it commented out as it will spam your console
-    // console.log('time', obj);
-    // mediaSDK.logPlayheadPosition(obj.position);
+jwplayer().on('time', function (obj) {
+    // We've disabled time update logging to spamming the console
+    // if you want to enable logging for time changes, add:
+    // logTimeChange = true
+    // in the console.
+
+    if (logTimeChange) {
+        console.log('time', obj);
+        mediaSDK.logPlayheadPosition(obj.position * 1000);
+    }
 });
 
-jwplayer().on('ready', function(obj) {
+jwplayer().on('ready', function (obj) {
     console.log('ready', obj);
 
     if (sessionStarted) {
@@ -16,7 +22,7 @@ jwplayer().on('ready', function(obj) {
     }
 });
 
-jwplayer().on('play', function(obj) {
+jwplayer().on('play', function (obj) {
     console.log('play', obj);
 
     // Play seems to be the obvious place to start a session, since that's
@@ -29,33 +35,34 @@ jwplayer().on('play', function(obj) {
     mediaSDK.logPlay();
 });
 
-jwplayer().on('pause', function(obj) {
+jwplayer().on('pause', function (obj) {
     mediaSDK.logPause({
-        currentPlayheadPosition: jwplayer().getCurrentTime(),
+        // JW Player returns time in seconds. mParticle requires milliseconds.
+        currentPlayheadPosition: jwplayer().getCurrentTime() * 1000,
         customAttributes: {
             exampleAttribute: 'I HAZ PAWZ'
         }
     });
 });
 
-jwplayer().on('beforeComplete', function(obj) {
+jwplayer().on('beforeComplete', function (obj) {
     // Fire this when the track/video completes but when the session is still active
     // For example, a post-roll advertisement
     console.log('complete', obj);
     mediaSDK.logMediaContentEnd();
 });
 
-jwplayer().on('seek', function(obj) {
+jwplayer().on('seek', function (obj) {
     console.log('seek', obj);
     mediaSDK.logSeekStart(obj.offset);
 });
 
-jwplayer().on('seeked', function(obj) {
+jwplayer().on('seeked', function (obj) {
     console.log('seeked', obj);
     mediaSDK.logSeekEnd(jwplayer().getPosition());
 });
 
-jwplayer().on('adBreakStart', function(obj) {
+jwplayer().on('adBreakStart', function (obj) {
     console.log('adBreakStart', obj);
 
     // Tracking ad breaks can vary between integration partners, players and ad networks.
@@ -78,7 +85,8 @@ jwplayer().on('adBreakStart', function(obj) {
     var adName = adPositionMap[adPosition] || 'mid-roll';
 
     // Current play head
-    var startTime = jwplayer('player').getCurrentTime();
+    // JW Player returns time in seconds. mParticle requires milliseconds.
+    var startTime = jwplayer('player').getCurrentTime() * 1000;
 
     var adBreakObject = {
         title: adName,
@@ -91,22 +99,22 @@ jwplayer().on('adBreakStart', function(obj) {
     mediaSDK.logAdBreakStart(adBreakObject);
 });
 
-jwplayer().on('adBreakEnd', obj => {
+jwplayer().on('adBreakEnd', (obj) => {
     console.log('adBreakEnd', obj);
     mediaSDK.logAdBreakEnd();
 });
 
-jwplayer().on('adClick', function(obj) {
+jwplayer().on('adClick', function (obj) {
     console.log('adClick', obj);
     mediaSDK.logAdClick();
 });
 
-jwplayer().on('adComplete', function(obj) {
+jwplayer().on('adComplete', function (obj) {
     console.log('adComplete', obj);
     mediaSDK.logAdEnd();
 });
 
-jwplayer().on('adPlay', function(obj) {
+jwplayer().on('adPlay', function (obj) {
     console.log('adPlay', obj);
 
     var adObject = {
@@ -120,16 +128,16 @@ jwplayer().on('adPlay', function(obj) {
     mediaSDK.logAdStart(adObject);
 });
 
-jwplayer().on('adManager', obj => {
+jwplayer().on('adManager', (obj) => {
     console.log('adManager', obj);
 });
 
-jwplayer().on('adSkipped', function(obj) {
+jwplayer().on('adSkipped', function (obj) {
     console.log('adSkipped', obj);
     mediaSDK.logAdSkip();
 });
 
-jwplayer().on('beforePlay', function(obj) {
+jwplayer().on('beforePlay', function (obj) {
     // This is the closest place to start a session for JWPlayer
     // This happens at the moment a user interacts with the player
     // and before an ad loads
@@ -149,7 +157,7 @@ jwplayer().on('beforePlay', function(obj) {
     }
 });
 
-jwplayer().on('complete', function(obj) {
+jwplayer().on('complete', function (obj) {
     // For JW Player, has finished playing everything, including ads
     console.log('complete', obj);
 
@@ -157,7 +165,7 @@ jwplayer().on('complete', function(obj) {
     sessionStarted = false;
 });
 
-jwplayer().on('visualQuality', function(obj) {
+jwplayer().on('visualQuality', function (obj) {
     console.log('visualQuality', obj);
 
     if (sessionStarted) {
@@ -168,7 +176,7 @@ jwplayer().on('visualQuality', function(obj) {
 
 // Subscribe to Media Event Listener so you can act upon any particular
 // Media Event that you may need to spy on
-window.mediaSDK.mediaEventListener = function(event) {
+window.mediaSDK.mediaEventListener = function (event) {
     console.log('Picking up Media Event', event);
     console.log('Example page event', event.toPageEvent());
     if (event.name === 'Play') {
