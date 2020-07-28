@@ -1,11 +1,17 @@
 // Used to keep track of when the media session actually starts
 var sessionStarted = false;
+var logTimeChange = false;
 
-jwplayer().on('time', function(obj) {
-    // Note: Uncomment the following console.log if you want to see time progress.
-    // Otherwise, leave it commented out as it will spam your console
-    // console.log('time', obj);
-    // mediaSDK.logPlayheadPosition(obj.position);
+jwplayer().on('time', function (obj) {
+    // We've disabled time update logging to spaming the console
+    // if you want to enable logging for time changes, add:
+    // logTimeChange = true
+    // in the console.
+
+    if (logTimeChange) {
+        console.log('time', obj);
+        mediaSDK.logPlayheadPosition(obj.position * 1000);
+    }
 });
 
 jwplayer().on('ready', function(obj) {
