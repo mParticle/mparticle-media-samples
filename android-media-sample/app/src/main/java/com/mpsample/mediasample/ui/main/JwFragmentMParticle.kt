@@ -12,11 +12,10 @@ import com.longtailvideo.jwplayer.configuration.PlayerConfig
 import com.longtailvideo.jwplayer.events.AdBreakStartEvent
 import com.longtailvideo.jwplayer.media.playlists.PlaylistItem
 import com.mparticle.MParticle
-import com.mparticle.MediaSession
-import com.mparticle.events.*
+import com.mparticle.media.MediaSession
+import com.mparticle.media.events.*
 import com.mpsample.mediasample.R
 import java.util.*
-import kotlin.collections.HashMap
 
 
 class JwFragmentMParticle: Fragment(), AnalyticsListener {
@@ -139,7 +138,7 @@ class JwFragmentMParticle: Fragment(), AnalyticsListener {
         player.addOnAdBreakStartListener {
             currentAdBreak = it
             mediaSession?.logAdBreakStart(MediaAdBreak().apply {
-                currentPlaybackTime = playheadPositionMillis
+                duration = playheadPositionMillis
             })
         }
 

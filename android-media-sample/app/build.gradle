@@ -42,7 +42,7 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     implementation 'androidx.lifecycle:lifecycle-extensions:2.0.0'
 
-    implementation 'com.mparticle:android-adobemedia-kit:5.10.0-SNAPSHOT'
+    implementation 'com.mparticle:android-adobemedia-kit:5.14.6'
 
     implementation 'com.google.android.exoplayer:exoplayer:2.10.2'
 
