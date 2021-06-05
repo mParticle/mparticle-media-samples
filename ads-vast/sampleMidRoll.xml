@@ -1,0 +1,35 @@
+<VAST version="2.0">
+  <Ad id="static">
+    <InLine>
+      <AdSystem>Sample Mid Roll</AdSystem>
+      <AdTitle>Croissant</AdTitle>
+      <Impression>http://localhost:8000?impression</Impression>
+      <Creatives>
+        <Creative>
+          <Linear>
+            <Duration>00:01:01</Duration>
+            <TrackingEvents>
+              <Tracking event="start">http://localhost:8000?start</Tracking>
+              <Tracking event="firstQuartile">http://localhost:8000?first</Tracking>
+              <Tracking event="midpoint">http://localhost:8000?mid</Tracking>
+              <Tracking event="thirdQuartile">http://localhost:8000?third</Tracking>
+              <Tracking event="complete">http://localhost:8000?complete</Tracking>
+              <Tracking event="pause">http://localhost:8000?pause</Tracking>
+              <Tracking event="mute">http://localhost:8000?mute</Tracking>
+              <Tracking event="fullscreen">http://localhost:8000?fullscreen</Tracking>
+            </TrackingEvents>
+            <VideoClicks>
+              <ClickThrough>http://www.mparticle.com/</ClickThrough>
+              <ClickTracking>http://localhost:8000?click</ClickTracking>
+            </VideoClicks>
+            <MediaFiles>
+              <MediaFile type="video/mp4" bitrate="300" width="1280" height="720">
+                https://content.jwplatform.com/videos/n0oUFJcz-jHSeTVAe.mp4
+              </MediaFile>
+            </MediaFiles>
+           </Linear>
+        </Creative>
+      </Creatives>
+    </InLine>
+  </Ad>
+</VAST>
